@@ -1,0 +1,18 @@
+{
+  "name": "@local/dsh-whale-persona",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "鲸鱼娘会话人设，DSH Whale Companion 适配版",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/linsport/dsh-whale-persona.git"
+  },
+  "upstreamRevision": "4f884899df629b88c331e96151225dc825c15c96",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

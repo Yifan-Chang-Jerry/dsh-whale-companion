@@ -1,0 +1,24 @@
+- id: mnemon
+  name: dsh-mnemon
+  config:
+    storageScope: custom
+    runtimeUserScope: storage
+    dataDir: !!js process.env.DSH_WHALE_MEMORY_DIR
+    cliPath: !!js process.env.DSH_WHALE_MNEMON_CLI
+    routingGuidance: true
+    lifecycleEnabled: true
+    recallMode: guided
+    writebackMode: guided
+    idleReviewMs: 30000
+    tabEnabled: true
+    writeEnabled: true
+    remoteAccess: read-only
+    timeoutMs: 10000
+    defaultRecallLimit: 10
+    embedding:
+      enabled: false
+      endpoint: http://localhost:11434
+      model: nomic-embed-text
+- id: mnemon-strategy-auto-capture
+  name: dsh-mnemon-strategy-auto-capture
+  disabled: false

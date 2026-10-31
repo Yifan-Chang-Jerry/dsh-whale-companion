@@ -1,0 +1,79 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@mnemon-dev/mnemon':
+        specifier: 0.2.13
+        version: 0.2.13
+
+packages:
+
+  '@mnemon-dev/mnemon@0.2.13':
+    resolution: {integrity: sha512-gfG0PKhd+yLJMG/Chpwn82Q310NDI9PC8DV3KzLdDU+tLITVkMhS5m2W/oaVhQc4//ff3UBB42q0Bt7Nke2+ag==}
+    engines: {node: '>=22'}
+    hasBin: true
+
+  '@mnemon-dev/mnemon@0.2.13-darwin-arm64':
+    resolution: {integrity: sha512-sVpKImnuLBjcmKrXIsIRyf7MNuZci1/BUrZQKAKVYizTkTrzzflydGoAwS/03ft2zG6OQ6NNzZzqEfTTYuaQMw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@mnemon-dev/mnemon@0.2.13-darwin-x64':
+    resolution: {integrity: sha512-lJlg09MFTvuVfn1HHt25uG0zln839wkeKRtH4TqA8EKyCwYnf18MtxNI2KfiTP4A0/QtEthhngn6E/xbwUwp1g==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@mnemon-dev/mnemon@0.2.13-linux-arm64':
+    resolution: {integrity: sha512-v6BfeZHNRKakX9FZfp1he4V6DOUt4q3PrbCYApwMUO0HItMqQYRZnmxP3axmwlL5/pVg3cUtD9gZ5IVakFBcZg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@mnemon-dev/mnemon@0.2.13-linux-x64':
+    resolution: {integrity: sha512-MFLKJh831uS69nvs/7WpjK9qiaJ9hRHkO6CTez4lZ99QzqhEPhejk2LN5SPApukAhqEnlDfcGFN2MFSAK8eNAw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@mnemon-dev/mnemon@0.2.13-win32-arm64':
+    resolution: {integrity: sha512-LTesipo5/7sh/pP6/A5ADFpcN5SfS7T47HBUOCj27TJ+gZCU7Jwn1y5L46H5QHzMuYk8y89d5RpEfsZzrj0L0g==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@mnemon-dev/mnemon@0.2.13-win32-x64':
+    resolution: {integrity: sha512-LG4xcKmpQfBDf/xKI1UidS4i3c26Dmd4kZRAnckLrGvU33OmebRcdZ0brTnSCUCY3T4pj2nIXnKV4eC6dp6wBw==}
+    cpu: [x64]
+    os: [win32]
+
+snapshots:
+
+  '@mnemon-dev/mnemon@0.2.13':
+    optionalDependencies:
+      '@mnemon-dev/mnemon-darwin-arm64': '@mnemon-dev/mnemon@0.2.13-darwin-arm64'
+      '@mnemon-dev/mnemon-darwin-x64': '@mnemon-dev/mnemon@0.2.13-darwin-x64'
+      '@mnemon-dev/mnemon-linux-arm64': '@mnemon-dev/mnemon@0.2.13-linux-arm64'
+      '@mnemon-dev/mnemon-linux-x64': '@mnemon-dev/mnemon@0.2.13-linux-x64'
+      '@mnemon-dev/mnemon-win32-arm64': '@mnemon-dev/mnemon@0.2.13-win32-arm64'
+      '@mnemon-dev/mnemon-win32-x64': '@mnemon-dev/mnemon@0.2.13-win32-x64'
+
+  '@mnemon-dev/mnemon@0.2.13-darwin-arm64':
+    optional: true
+
+  '@mnemon-dev/mnemon@0.2.13-darwin-x64':
+    optional: true
+
+  '@mnemon-dev/mnemon@0.2.13-linux-arm64':
+    optional: true
+
+  '@mnemon-dev/mnemon@0.2.13-linux-x64':
+    optional: true
+
+  '@mnemon-dev/mnemon@0.2.13-win32-arm64':
+    optional: true
+
+  '@mnemon-dev/mnemon@0.2.13-win32-x64':
+    optional: true

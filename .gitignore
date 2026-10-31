@@ -1,0 +1,15 @@
+.runtime/
+node_modules/
+.env
+.env.*
+.DS_Store
+*.log
+*.tsbuildinfo
+__pycache__/
+*.pyc
+*.moc3
+*.psd
+*.vtube.json
+*.exp3.json
+*.motion3.json
+live2dcubismcore*

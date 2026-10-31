@@ -1,0 +1,19 @@
+{
+  "name": "dsh-whale-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live2D desktop companion with real DeepSeek Harness sessions and agent tools",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24.9.0" },
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "import-model": "node scripts/import-model.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "install-agent": "node scripts/install-agent.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "repository": { "type": "git", "url": "https://github.com/Yifan-Chang-Jerry/dsh-whale-companion.git" }
+}

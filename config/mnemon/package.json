@@ -1,0 +1,7 @@
+{
+  "name": "whale-companion-memory-tools",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "dependencies": { "@mnemon-dev/mnemon": "0.2.13" }
+}

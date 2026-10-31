@@ -1,0 +1,115 @@
+{
+  "model": "model/preview.model3.json",
+  "maxFps": 60,
+  "bodyParameter": "Clothes2",
+  "bodyValues": [
+    0,
+    0.4,
+    1
+  ],
+  "expressions": {
+    "idle": null,
+    "afk": null,
+    "thinking": "加载",
+    "tool": "单片眼镜",
+    "waiting": "加载",
+    "success": "兔牙",
+    "failure": "流冷汗",
+    "workPat": "脸红"
+  },
+  "maskSize": 1024,
+  "maskBuffers": 2,
+  "idle": {
+    "group": "Idle",
+    "firstActionDelaySeconds": 8,
+    "restSeconds": 14,
+    "blinkIntervalSeconds": 3.5,
+    "gaze": {
+      "x": "AngleX",
+      "y": "AngleY",
+      "z": "AngleZ",
+      "originDrawables": [
+        "ArtMesh237",
+        "ArtMesh135"
+      ],
+      "body": {
+        "x": "PositionX",
+        "y": "PositionY",
+        "z": "PositionZ",
+        "amplitude": 7,
+        "responseSeconds": 0.55
+      }
+    },
+    "parameters": [
+      {
+        "id": "AngleX",
+        "center": 0,
+        "amplitude": 2.5,
+        "periodSeconds": 9,
+        "phase": 0.25
+      },
+      {
+        "id": "AngleY",
+        "center": 0,
+        "amplitude": 1.5,
+        "periodSeconds": 4.8,
+        "phase": 1.2
+      },
+      {
+        "id": "AngleZ",
+        "center": 0,
+        "amplitude": 1.5,
+        "periodSeconds": 9,
+        "phase": 0.7
+      },
+      {
+        "id": "PositionX",
+        "center": 0,
+        "amplitude": 2.5,
+        "periodSeconds": 9,
+        "phase": 0
+      },
+      {
+        "id": "PositionY",
+        "center": 0,
+        "amplitude": 1.5,
+        "periodSeconds": 4.8,
+        "phase": 1.2
+      },
+      {
+        "id": "PositionZ",
+        "center": 0,
+        "amplitude": 1.5,
+        "periodSeconds": 9,
+        "phase": 0.7
+      },
+      {
+        "id": "LeanInput",
+        "center": 0,
+        "amplitude": 1.5,
+        "periodSeconds": 9,
+        "phase": 1.7
+      }
+    ],
+    "actions": [
+      {
+        "group": "Chest",
+        "holdSeconds": 3
+      },
+      {
+        "group": "Point",
+        "holdSeconds": 3
+      },
+      {
+        "group": "Grass",
+        "holdSeconds": 3
+      }
+    ],
+    "motion": {
+      "file": "model/PreviewAnimation/body-idle.motion3.json",
+      "weight": 0.85,
+      "followFadeSeconds": 0.25
+    }
+  },
+  "controls": "model/PreviewAnimation/controls.json"
+}

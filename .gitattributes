@@ -1,0 +1,7 @@
+patches/*.patch -whitespace
+third-party/licenses/** -whitespace
+third-party/*-LICENSE.txt -whitespace
+third-party/*notices.html -whitespace
+third-party/electron-chromium-notices.html conflict-marker-size=128
+licenses/** -whitespace
+bundles/whale-persona/LICENSE -whitespace

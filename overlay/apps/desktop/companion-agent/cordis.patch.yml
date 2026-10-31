@@ -1,0 +1,7 @@
+- preset: whale
+  insert:
+    - id: whale-actions
+      name: '@local/dsh-whale-actions'
+      config:
+        bridgeFile: !!js process.env.DSH_COMPANION_BRIDGE_FILE
+        timeoutMs: 12000

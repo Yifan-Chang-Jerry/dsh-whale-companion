@@ -1,0 +1,1846 @@
+diff --git a/apps/desktop/package.json b/apps/desktop/package.json
+index 40bdfefe27..3933b445dc 100644
+--- a/apps/desktop/package.json
++++ b/apps/desktop/package.json
+@@ -11,12 +11,13 @@
+   "main": "lib/main.js",
+   "scripts": {
+     "test:installer": "node scripts/test-windows-installer.mjs",
+-    "build": "tsc -b && pnpm run bundle",
++    "build": "tsc -b && pnpm run bundle && pnpm run bundle:companion",
+     "bundle": "tsdown --config-loader native",
+     "dev": "tsx scripts/dev.ts",
+     "start": "tsx scripts/dev.ts --skip-build",
+     "test:updates:local": "pnpm run build && node scripts/test-local-updater.mjs",
+     "prepare:runtime": "tsx scripts/prepare-runtime.ts",
++    "prepare:companion": "tsx scripts/prepare-companion.ts",
+     "render:tray-icon": "tsx scripts/render-tray-icon.ts",
+     "prepare:primary-runtime": "tsx scripts/prepare-primary-runtime.ts",
+     "sign:primary-runtime": "tsx scripts/sign-primary-runtime.ts",
+@@ -44,27 +45,50 @@
+     "upload:latest:mac:arm64": "tsx scripts/upload-target.ts mac-arm64 --latest",
+     "upload:latest:mac:x64": "tsx scripts/upload-target.ts mac-x64 --latest",
+     "upload:latest:win:x64": "tsx scripts/upload-target.ts win-x64 --latest",
+-    "purge:latest": "tsx scripts/upload-target.ts --latest --purge-only"
++    "purge:latest": "tsx scripts/upload-target.ts --latest --purge-only",
++    "bundle:companion": "vite build --config vite-companion.config.ts"
+   },
+   "dependencies": {
++    "@deepseek-ai/cordis": "workspace:~",
++    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+     "electron-updater": "^6.8.9",
+     "semver": "^7.8.5",
+-    "ws": "^8.21.3",
+-    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+-    "@deepseek-ai/cordis": "workspace:~"
++    "ws": "^8.21.3"
+   },
+   "devDependencies": {
++    "@deepseek-ai/dsh-tools": "workspace:*",
++    "@deepseek-ai/schemastery": "workspace:~",
++    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
++    "@deepseek-ai/dsh-api-workspace-controller": "workspace:*",
+     "@deepseek-ai/dsh-app-boot": "workspace:*",
++    "@deepseek-ai/dsh-atomic-write": "workspace:*",
++    "@deepseek-ai/dsh-client-connection": "workspace:*",
++    "@deepseek-ai/dsh-client-product-analytics": "workspace:*",
++    "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
++    "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
++    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
+     "@deepseek-ai/dsh-client-ui-settings-general": "workspace:*",
+     "@deepseek-ai/dsh-client-ui-sidebar-browser": "workspace:*",
++    "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
++    "@deepseek-ai/dsh-commands": "workspace:*",
++    "@deepseek-ai/dsh-deepseek-account": "workspace:*",
+     "@deepseek-ai/dsh-home-paths": "workspace:*",
++    "@deepseek-ai/dsh-llm": "workspace:*",
+     "@deepseek-ai/dsh-official-bundles": "workspace:*",
++    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
++    "@deepseek-ai/dsh-session": "workspace:*",
++    "@deepseek-ai/dsh-subagent": "workspace:*",
++    "@deepseek-ai/dsh-typert-registry": "workspace:*",
++    "@deepseek-ai/dsh-util-file-drag": "workspace:*",
++    "@deepseek-ai/dsh-workspace": "workspace:*",
+     "@deepseek-ai/node-addon-system": "workspace:~",
+     "@electron/get": "^5.1.0",
+     "@electron/notarize": "2.5.0",
++    "@pixi/unsafe-eval": "7.4.3",
+     "@types/js-yaml": "^4.0.9",
+     "@types/node": "^22.20.1",
+     "@types/semver": "^7.8.0",
++    "@types/ws": "^8.18.1",
+     "app-builder-lib": "26.17.0",
+     "cos-nodejs-sdk-v5": "3.0.0",
+     "electron": "^44.7.0",
+@@ -72,23 +96,16 @@
+     "extract-zip": "^2.0.1",
+     "js-yaml": "^4.3.2",
+     "koffi": "3.1.1",
++    "pixi-live2d-display-lipsyncpatch": "0.5.0-ls-8",
++    "pixi.js": "7.4.3",
+     "pnpm": "11.28.5",
+-    "sharp": "0.35.5",
+-    "typescript": "^6.0.3",
+-    "@deepseek-ai/dsh-deepseek-account": "workspace:*",
+-    "@types/ws": "^8.18.1",
+-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
+     "react": "^18.2.0",
+     "react-dom": "^18.2.0",
++    "sharp": "0.35.5",
++    "tencentcloud-sdk-nodejs-teo": "4.1.330",
++    "typescript": "^6.0.3",
+     "vite": "^6.4.3",
+-    "@deepseek-ai/dsh-client-ui-theme": "workspace:*",
+-    "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
+-    "@deepseek-ai/dsh-atomic-write": "workspace:*",
+-    "@deepseek-ai/dsh-client-product-analytics": "workspace:*",
+-    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
+-    "zod": "4.4.3",
+-    "@deepseek-ai/dsh-util-file-drag": "workspace:*",
+-    "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
+-    "tencentcloud-sdk-nodejs-teo": "4.1.330"
+-  }
++    "zod": "4.4.3"
++  },
++  "dshCompanion": true
+ }
+diff --git a/apps/desktop/scripts/desktop-package-environment.mjs b/apps/desktop/scripts/desktop-package-environment.mjs
+index 27a7f92c7f..213849fe35 100644
+--- a/apps/desktop/scripts/desktop-package-environment.mjs
++++ b/apps/desktop/scripts/desktop-package-environment.mjs
+@@ -29,7 +29,7 @@ const FILE_SETTINGS = ['DSH_DESKTOP_WINDOWS_CER_FILE', 'DSH_DESKTOP_WINDOWS_SIGN
+ export function localMacOSPackageEnvironment(environment = process.env) {
+   return {
+     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
+-    DSH_DESKTOP_APP_ID: 'com.deepseek.harness',
++    DSH_DESKTOP_APP_ID: 'local.dsh.companion',
+     DSH_DESKTOP_UNSIGNED: '1',
+   }
+ }
+diff --git a/apps/desktop/scripts/dev.ts b/apps/desktop/scripts/dev.ts
+index 37515c20b0..4f4dd32d7f 100644
+--- a/apps/desktop/scripts/dev.ts
++++ b/apps/desktop/scripts/dev.ts
+@@ -78,7 +78,7 @@ async function launchElectron(): Promise<void> {
+   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)
+   if (process.platform === 'darwin') {
+     const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: DEVELOPMENT_ROOT, home, userData,
+-      mainPort, rendererPort, hostPort, openDevtools: environment.DSH_DESKTOP_OPEN_DEVTOOLS! })
++      mainPort, rendererPort, hostPort, openDevtools: environment.DSH_DESKTOP_OPEN_DEVTOOLS!, primaryRuntime: environment.DSH_DESKTOP_PRIMARY_RUNTIME_DIR! })
+     await run(executable, [], APP_ROOT, environment)
+     return
+   }
+diff --git a/apps/desktop/scripts/development-app.ts b/apps/desktop/scripts/development-app.ts
+index ff09b8b783..370ce4b700 100644
+--- a/apps/desktop/scripts/development-app.ts
++++ b/apps/desktop/scripts/development-app.ts
+@@ -15,6 +15,7 @@ export interface DevelopmentAppOptions {
+   readonly rendererPort: number
+   readonly hostPort: number
+   readonly openDevtools: string
++  readonly primaryRuntime?: string
+ }
+ 
+ function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'` }
+@@ -40,7 +41,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
+       CFBundleName: 'Harness Dev',
+       CFBundleDisplayName: 'Harness Dev',
+       CFBundleExecutable: 'HarnessDev',
+-      CFBundleURLTypes: [{ CFBundleURLName: 'DeepSeek Harness', CFBundleURLSchemes: ['dsh'], CFBundleTypeRole: 'Viewer' }],
++      CFBundleURLTypes: [{ CFBundleURLName: 'DeepSeek Harness', CFBundleURLSchemes: ['dsh-companion'], CFBundleTypeRole: 'Viewer' }],
+     }
+     for (const [key, value] of Object.entries(values)) {
+       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
+@@ -66,6 +67,7 @@ export function developmentLauncher(options: DevelopmentAppOptions, bundle: stri
+     DSH_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),
+     DSH_DESKTOP_OPEN_DEVTOOLS: options.openDevtools,
+     ELECTRON_ENABLE_LOGGING: '1',
++    ...(options.primaryRuntime === undefined ? {} : { DSH_DESKTOP_PRIMARY_RUNTIME_DIR: options.primaryRuntime }),
+   }
+   const args = [
+     join(bundle, 'Contents', 'MacOS', 'Electron'),
+diff --git a/apps/desktop/scripts/electron-builder-config.mjs b/apps/desktop/scripts/electron-builder-config.mjs
+index cf0c19e895..3deda2ff6e 100644
+--- a/apps/desktop/scripts/electron-builder-config.mjs
++++ b/apps/desktop/scripts/electron-builder-config.mjs
+@@ -106,7 +106,7 @@ export function createElectronBuilderConfig(
+   const packaged = resolveDesktopBuildCommit(env)
+   return {
+     appId,
+-    protocols: [{ name: 'DeepSeek Harness', schemes: ['dsh'] }],
++    protocols: [{ name: 'DSH Companion', schemes: ['dsh-companion'] }],
+     extraMetadata: {
+       dshDesktopAppId: appId,
+       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
+@@ -114,11 +114,11 @@ export function createElectronBuilderConfig(
+       ...buildVersion === productVersion ? {} : { version: buildVersion },
+       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
+     },
+-    productName: 'DeepSeek Harness',
++    productName: 'DSH Companion',
+     // The default copyright uses author.name; this line names the product instead.
+     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
+     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
+-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
++    artifactName: `dsh-companion-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+     directories: { output: output.directory },
+     asar: true,
+     electronDist: buildPaths.electron,
+@@ -141,7 +141,9 @@ export function createElectronBuilderConfig(
+       'lib/main.js',
+       'lib/operation-report-worker.js',
+       'lib/welcome/**/*',
++      'lib/companion/**/*',
+       'lib/preload-app.cjs',
++      'lib/preload-companion.cjs',
+       'lib/preload-mandatory.cjs',
+       'lib/preload-platform-account.cjs',
+       'lib/preload-update-dialog.cjs',
+@@ -269,6 +271,6 @@ export function createElectronBuilderConfig(
+       differentialPackage: true,
+     },
+     detectUpdateChannel: false,
+-    publish: update === undefined ? null : [{ provider: 'generic', url: update.publicUrl, channel: update.channel }],
++    publish: null,
+   }
+ }
+diff --git a/apps/desktop/scripts/package-macos.ts b/apps/desktop/scripts/package-macos.ts
+index 4ba0fd12ca..1f47f68027 100644
+--- a/apps/desktop/scripts/package-macos.ts
++++ b/apps/desktop/scripts/package-macos.ts
+@@ -78,7 +78,7 @@ export async function packageMacOSArtifacts(
+   const expected = resolveMacOSSigningEnvironment(environment)
+   const credentials = resolveMacOSNotarizationEnvironment(environment)
+   const update = resolveDesktopAutoUpdateConfig(environment, 'darwin', arch)
+-  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
++  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'DSH Companion.app')
+   const root = await mkdtemp(join(dirname(artifactsRoot), 'notarization-'))
+   const zipApp = join(root, 'zip', basename(appPath))
+   const dmgApp = join(root, 'dmg', basename(appPath))
+@@ -110,7 +110,7 @@ export async function packageMacOSArtifacts(
+     await verifyMacOSAppUpdateConfig(dmgApp, update)
+     apple.verifySignature(zipApp, expected)
+     apple.verifySignature(dmgApp, expected)
+-    const base = `deepseek-harness-${version}-mac-${arch}`
++    const base = `dsh-companion-${version}-mac-${arch}`
+     const artifacts = [
+       [dmgOutput, `${base}.dmg`],
+       [zipOutput, `${base}.zip`],
+diff --git a/apps/desktop/scripts/package-target.ts b/apps/desktop/scripts/package-target.ts
+index b6bc6efb63..895a0c2c01 100644
+--- a/apps/desktop/scripts/package-target.ts
++++ b/apps/desktop/scripts/package-target.ts
+@@ -402,7 +402,7 @@ async function main(): Promise<void> {
+   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
+     const paths = desktopTargetBuildPaths(target.name, environment)
+     const output = desktopArtifactOutput(paths, invocation)
+-    const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
++    const filename = `dsh-companion-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
+     console.log(`DMG: ${join(output.directory, filename)}`)
+   }
+ }
+@@ -545,13 +545,13 @@ export async function packageTarget(
+   } else if (target.platform === 'darwin' && !invocation.unsigned && !invocation.skipNotarization) {
+     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
+     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
+-    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
++    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DSH Companion.app')
+     await withMacOSNotarizationProxy(mac?.notarizationProxy,
+       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
+   } else {
+     if (target.platform === 'darwin' && invocation.skipNotarization && !invocation.directory) {
+       await execute(desktopElectronBuilderArguments(target, true), electronBuilderEnv)
+-      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
++      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DSH Companion.app')
+       for (const format of ['dmg', 'zip'] as const) {
+         await buildMacArtifact({ format, appPath, output: artifactsRoot })
+       }
+diff --git a/apps/desktop/scripts/smoke-packaged-runtime.ts b/apps/desktop/scripts/smoke-packaged-runtime.ts
+index 6c3c12c857..f3fe0b65c9 100644
+--- a/apps/desktop/scripts/smoke-packaged-runtime.ts
++++ b/apps/desktop/scripts/smoke-packaged-runtime.ts
+@@ -13,9 +13,9 @@ const target = resolveDesktopBuildTarget()
+ const windows = target === 'win-x64'
+ const artifacts = desktopArtifactOutput(paths, { unsigned: values.unsigned, skipNotarization: values['skip-notarization'] }).directory
+ const application = windows ? join(artifacts, 'win-unpacked')
+-  : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app', 'Contents')
++  : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', 'DSH Companion.app', 'Contents')
+ const resources = join(application, windows ? 'resources' : 'Resources')
+-const executable = windows ? join(application, 'DeepSeek Harness.exe') : join(application, 'MacOS', 'DeepSeek Harness')
++const executable = windows ? join(application, 'DSH Companion.exe') : join(application, 'MacOS', 'DSH Companion')
+ const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
+   resolveDesktopPackageTarget(target))
+ if (windows && !values.unsigned) await verifyWindowsCode(application)
+diff --git a/apps/desktop/src/main.ts b/apps/desktop/src/main.ts
+index d8d0e30c4c..fe3c6dc212 100644
+--- a/apps/desktop/src/main.ts
++++ b/apps/desktop/src/main.ts
+@@ -67,6 +67,15 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
+ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
+ import { DesktopTray } from './tray.ts'
+ import { DesktopBackgroundNotice } from './background-notice.ts'
++import { CompanionWindows } from './companion/windows.ts'
++import { COMPANION_IPC } from './companion/api.ts'
++import { companionCopy } from './companion/copy.ts'
++
++app.setName('DSH Companion')
++if (app.isPackaged) {
++  process.env.DSH_HOME ??= join(app.getPath('home'), '.dsh-companion')
++  app.setPath('userData', process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(app.getPath('appData'), 'DSH Companion'))
++}
+ 
+ let focusPrimaryWindow = (): void => {}
+ let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
+@@ -366,6 +375,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
+ }
+ 
+ async function main(): Promise<void> {
++  process.env.DSH_COMPANION_BRIDGE_FILE = join(app.getPath('userData'), 'companion', 'agent-bridge.json')
+   const desktopSettings = readDesktopSettings(app.getPath('userData'))
+   void pruneCrashReports(app.getPath('logs'))
+   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
+@@ -395,6 +405,9 @@ async function main(): Promise<void> {
+   let workspaceRecovery: Promise<void> | undefined
+   let mainWindow: BrowserWindow | undefined
+   let welcomeWindow: BrowserWindow | undefined
++  let companion: CompanionWindows | undefined
++  let companionReady: Promise<void> | undefined
++  let pendingCompanionNavigation: string | undefined
+   const installFileDrag = (): (() => Promise<void>) => installDesktopFileDrag(
+     event => assertProductSender(event),
+     (address, signal) => {
+@@ -531,6 +544,8 @@ async function main(): Promise<void> {
+         const ready = await host.start()
+         hostCookie = await authenticateWebHost(ready.url)
+         hostUrl = ready.url
++        await companionReady
++        void companion?.connect(ready.url, hostCookie)
+         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
+         injections = ready.injections
+         welcomeBackend = await connectDesktopWelcome(ready.url, (input, init) => net.fetch(input, init), async () => (await session.defaultSession.cookies.get({ url: ready.url })).map(cookie => `${cookie.name}=${cookie.value}`).join('; '))
+@@ -676,6 +691,7 @@ async function main(): Promise<void> {
+   }
+ 
+   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
++  const companionBuild = typeof manifest === 'object' && manifest !== null && 'dshCompanion' in manifest && manifest.dshCompanion === true
+   const updateChannel = desktopUpdateChannel(manifest)
+   const updates = new DesktopUpdateCoordinator(
+     publishUpdate,
+@@ -732,7 +748,7 @@ async function main(): Promise<void> {
+       }
+       return true
+     },
+-    undefined, undefined, undefined,
++    undefined, companionBuild ? () => false : undefined, undefined,
+     (success, reason) => { void track('desktop_upgrade_download_result', { is_success: success, ...reason === undefined ? {} : { error_reason: reason } }) },
+     updateChannel,
+   )
+@@ -759,8 +775,22 @@ async function main(): Promise<void> {
+     window.once('closed', () => { resolve() })
+   })
+ 
++  const companionSwitch = process.env.DSH_COMPANION_ENABLED ?? '1'
++  if (companionSwitch !== '0' && companionSwitch !== '1') throw new Error('DSH_COMPANION_ENABLED must be 0 or 1')
++  const companionEnabled = companionSwitch === '1'
++  const companionLive2dDirectory = app.isPackaged ? undefined
++    : process.env.DSH_COMPANION_LIVE2D_DIR ?? join(app.getAppPath(), '.desktop-build', 'live2d')
+   protocol.handle(SCHEME, (request) => {
+     const url = new URL(request.url)
++    if (url.hostname === 'companion') {
++      if (!companionEnabled) return Promise.resolve(new Response(null, { status: 404 }))
++      if (url.pathname.startsWith('/live2d/')) {
++        if (companionLive2dDirectory === undefined) return Promise.resolve(new Response(null, { status: 404 }))
++        url.pathname = url.pathname.slice('/live2d'.length)
++        return serveWebDocument(new Request(url, { method: request.method }), companionLive2dDirectory)
++      }
++      return serveWebDocument(request, join(app.getAppPath(), 'lib', 'companion'))
++    }
+     // Shell-owned documents live in the application bundle and never pass through the Host.
+     if (url.hostname === 'shell') return serveWebDocument(request, join(app.getAppPath(),
+       url.pathname === '/design-platform.css' ? 'lib/welcome' : 'renderer'))
+@@ -777,6 +807,25 @@ async function main(): Promise<void> {
+     return Promise.resolve(new Response(null, { status: 404 }))
+   })
+ 
++  if (companionEnabled) {
++    companion = new CompanionWindows({
++      locale: () => currentDesktopLocale().id.startsWith('zh') ? 'zh' : 'en',
++      openWorkbench: async (sessionId) => {
++        await startup
++        pendingCompanionNavigation = sessionId
++        await enterWorkspace()
++        if (sessionId !== undefined) mainWindow?.webContents.send(COMPANION_IPC.navigation, sessionId)
++      },
++    })
++    companionReady = companion.start()
++    ipcMain.on(COMPANION_IPC.navigationReady, (event, handled?: unknown) => {
++      if (mainWindow === undefined || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame
++        || !event.senderFrame.url.startsWith('dsh-app://app/')) return
++      if (handled === pendingCompanionNavigation && typeof handled === 'string') pendingCompanionNavigation = undefined
++      else if (pendingCompanionNavigation !== undefined) event.sender.send(COMPANION_IPC.navigation, pendingCompanionNavigation)
++    })
++  }
++
+   installDesktopDirectoryPicker(() => mainWindow)
+   installMicrophonePermissions(session.defaultSession, () => mainWindow?.webContents)
+   const shortcuts = installDesktopShortcuts(() => mainWindow, app.getPath('userData'),
+@@ -1018,7 +1067,7 @@ async function main(): Promise<void> {
+ 
+   const automaticCheck = (): void => {
+     if (!quitting) void mandatoryPolicy?.check('foreground-or-resume').catch((error: unknown) => { console.error(error) })
+-    if (!quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
++    if (!companionBuild && !quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
+   }
+   powerMonitor.on('resume', automaticCheck)
+   app.on('will-quit', () => {
+@@ -1030,7 +1079,7 @@ async function main(): Promise<void> {
+   const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
+     : join(process.resourcesPath, 'icon.png')
+   app.setAboutPanelOptions({
+-    applicationName: 'DeepSeek Harness',
++    applicationName: companionBuild ? 'DSH Companion' : 'DeepSeek Harness',
+     applicationVersion: app.getVersion(),
+     // The release has no separate build number; omit Electron's bundle version.
+     version: '',
+@@ -1050,6 +1099,11 @@ async function main(): Promise<void> {
+       { role: 'unhide', label: currentDesktopLocale().messages.showAllApplications }, { type: 'separator' }]
+     : []
+   const applicationItems = (): MenuItemConstructorOptions[] => [
++    ...companionBuild ? [
++      { label: companionCopy(locale.id.startsWith('zh') ? 'zh' : 'en').panel, click: () => { companion?.showPanel() } },
++      { label: companionCopy(locale.id.startsWith('zh') ? 'zh' : 'en').settings, click: () => { companion?.showPanel('settings') } },
++      { type: 'separator' as const },
++    ] : [],
+     // Windows has no system About panel; Electron's fallback is a plain
+     // message box, so the shell shows its own dimmed dialog instead.
+     process.platform === 'win32'
+@@ -1332,10 +1386,10 @@ async function main(): Promise<void> {
+     window.focus()
+   }
+ 
+-  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
++  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient(companionBuild ? 'dsh-companion' : 'dsh')
+   app.on('open-url', (event, url) => {
+     event.preventDefault()
+-    if (url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()
++    if (url === `${companionBuild ? 'dsh-companion' : 'dsh'}://open` || url === `${companionBuild ? 'dsh-companion' : 'dsh'}://open/`) focusPrimaryWindow()
+   })
+ 
+   app.on('activate', (_event, hasVisibleWindows) => {
+@@ -1358,7 +1412,7 @@ async function main(): Promise<void> {
+     updateSchedule.dispose()
+     updateDialog.dispose()
+     mandatoryUI?.dispose()
+-    void Promise.all([stopOperationReports(), Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()),
++    void Promise.all([Promise.resolve(companion?.dispose()), stopOperationReports(), Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()),
+       backend.close().then(async () => { await operationJournal?.drain(500) }, async (error: unknown) => {
+         await operationJournal?.drain(500)
+         throw error
+diff --git a/apps/desktop/src/preload-app.ts b/apps/desktop/src/preload-app.ts
+index 26266b4f1c..b6c7cd5f4b 100644
+--- a/apps/desktop/src/preload-app.ts
++++ b/apps/desktop/src/preload-app.ts
+@@ -11,6 +11,7 @@ import { syncWindowsAppearance } from './preload-windows.ts'
+ import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
+ import { createDesktopBrowserBridge } from './preload-browser.ts'
+ import type { FileDragHandle } from '@deepseek-ai/dsh-util-file-drag'
++import { COMPANION_IPC } from './companion/api.ts'
+ 
+ function createProductApi(): DshDesktopProductApi {
+   return {
+@@ -77,6 +78,26 @@ function createProductApi(): DshDesktopProductApi {
+ }
+ 
+ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
++  const navigationListeners = new Set<(sessionId: string) => void>()
++  let pendingNavigation: string | undefined
++  ipcRenderer.on(COMPANION_IPC.navigation, (_event, sessionId: unknown) => {
++    if (typeof sessionId !== 'string' || sessionId.length > 200) return
++    pendingNavigation = sessionId
++    for (const listener of navigationListeners) listener(sessionId)
++  })
++  contextBridge.exposeInMainWorld('dshCompanionNavigation', {
++    subscribe(listener: (sessionId: string) => void) {
++      const handle = (sessionId: string): void => {
++        listener(sessionId)
++        pendingNavigation = undefined
++        ipcRenderer.send(COMPANION_IPC.navigationReady, sessionId)
++      }
++      navigationListeners.add(handle)
++      if (pendingNavigation !== undefined) handle(pendingNavigation)
++      ipcRenderer.send(COMPANION_IPC.navigationReady)
++      return () => { navigationListeners.delete(handle) }
++    },
++  })
+   contextBridge.exposeInMainWorld('dshOnboarding', {
+     hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
+     setActive: (active: boolean) => { ipcRenderer.send(DESKTOP_IPC.onboardingActive, active) },
+diff --git a/apps/desktop/src/web-document.ts b/apps/desktop/src/web-document.ts
+index a74ea7c7ef..1b8a8c5aef 100644
+--- a/apps/desktop/src/web-document.ts
++++ b/apps/desktop/src/web-document.ts
+@@ -5,7 +5,8 @@ import { extname, resolve, sep } from 'node:path'
+ const MIME: Readonly<Record<string, string>> = {
+   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json',
+-  '.woff2': 'font/woff2', '.png': 'image/png', '.ico': 'image/x-icon',
++  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.png': 'image/png', '.ico': 'image/x-icon',
++  '.webp': 'image/webp',
+ }
+ const BOOT = '<script>globalThis.__DSH_BOOT_READY__ = Promise.withResolvers()</script>'
+ 
+@@ -28,7 +29,7 @@ export async function serveWebDocument(request: Request, root: string): Promise<
+     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 404 })
+     throw error
+   }
+-  const content = pathname === '/' || pathname === '/index.html'
++  const content = url.hostname === 'app' && (pathname === '/' || pathname === '/index.html')
+     ? body.toString().replace('<head>', '<head>' + BOOT) : new Uint8Array(body)
+   return new Response(request.method === 'HEAD' ? null : content, {
+     headers: { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' },
+diff --git a/apps/desktop/tests/main-startup.spec.ts b/apps/desktop/tests/main-startup.spec.ts
+index 3b1e63e00c..842ea74cb1 100644
+--- a/apps/desktop/tests/main-startup.spec.ts
++++ b/apps/desktop/tests/main-startup.spec.ts
+@@ -20,7 +20,14 @@ type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
+ type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
+ 
+ const fileDrag = vi.hoisted(() => ({ dispose: vi.fn<() => Promise<void>>(), install: vi.fn() }))
++const companionLifecycle = vi.hoisted(() => ({ start: vi.fn(async () => {}) }))
+ vi.mock('../src/file-drag.ts', () => ({ installDesktopFileDrag: () => { fileDrag.install(); return fileDrag.dispose } }))
++vi.mock('../src/companion/windows.ts', () => ({ CompanionWindows: class {
++  readonly start = companionLifecycle.start
++  async connect(): Promise<void> {}
++  async dispose(): Promise<void> {}
++  showPanel(): void {}
++} }))
+ 
+ vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
+ vi.mock('../src/operation-report-job.ts', () => ({ runOperationReportJob: vi.fn(async () => ({ appended: false, timedOut: false, cancelled: false })) }))
+@@ -175,6 +182,8 @@ const harness = await vi.hoisted(async () => {
+   const app = Object.assign(new EventEmitter(), {
+     isPackaged: true,
+     name: 'Desktop test',
++    setName: vi.fn(),
++    setPath: vi.fn(),
+     whenReady: () => Promise.resolve(),
+     getLocale: (): string => 'en-US',
+     getPreferredSystemLanguages: () => ['en-US'],
+@@ -453,6 +462,7 @@ beforeEach(() => {
+   vi.stubEnv('DSH_DESKTOP_MANDATORY_UPDATE_CONFIG', undefined)
+   vi.stubEnv('DSH_DESKTOP_UPDATE_JOURNAL_DIR', undefined)
+   vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3')
++  vi.stubEnv('DSH_COMPANION_ENABLED', undefined)
+   harness.analyticsEnabled = true
+ })
+ 
+@@ -472,6 +482,18 @@ afterEach(async () => {
+ })
+ 
+ describe('desktop main startup', () => {
++  it.each([[undefined, 1], ['0', 0]] as const)('honors the companion project switch (flag=%s)', async (flag, starts) => {
++    vi.stubEnv('DSH_COMPANION_ENABLED', flag)
++    await readyForUpdate()
++    expect(companionLifecycle.start).toHaveBeenCalledTimes(starts)
++    if (flag === '0') {
++      const { protocol } = await import('electron')
++      const handler = vi.mocked(protocol).handle.mock.calls.at(-1)?.[1]
++      if (handler === undefined) throw new Error('main did not register its protocol handler')
++      expect((await handler(new Request('dsh-app://companion/index.html?view=pet'))).status).toBe(404)
++    }
++  })
++
+   it.each([true, false])('selects the package manager before Host startup (packaged=%s)', async (packaged) => {
+     harness.app.isPackaged = packaged
+     await readyForUpdate()
+diff --git a/apps/desktop/tests/web-document.spec.ts b/apps/desktop/tests/web-document.spec.ts
+index 0fd9b591b1..66e506efa4 100644
+--- a/apps/desktop/tests/web-document.spec.ts
++++ b/apps/desktop/tests/web-document.spec.ts
+@@ -22,6 +22,14 @@ it('serves the Web entry and assets without starting or contacting a Host', asyn
+   const html = await response.text()
+   expect(html.indexOf('Promise.withResolvers()')).toBeLessThan(html.indexOf('assets/entry.js'))
+   expect(await (await serveWebDocument(new Request('dsh-app://app/assets/entry.js'), root)).text()).toContain('entryLoaded')
++  const companion = await serveWebDocument(new Request('dsh-app://companion/'), root)
++  expect(await companion.text()).not.toContain('Promise.withResolvers()')
++  for (const [extension, mime] of [['woff', 'font/woff'], ['ttf', 'font/ttf']] as const) {
++    await writeFile(join(root, `assets/markdown.${extension}`), 'font bytes')
++    const font = await serveWebDocument(new Request(`dsh-app://companion/assets/markdown.${extension}`), root)
++    expect(font.headers.get('content-type')).toBe(mime)
++    expect(await font.text()).toBe('font bytes')
++  }
+   expect(fetch).not.toHaveBeenCalled()
+   expect((await serveWebDocument(new Request('dsh-app://app/%2e%2e%2fprivate'), root)).status).toBe(403)
+   expect((await serveWebDocument(new Request('dsh-app://app/missing.js'), root)).status).toBe(404)
+diff --git a/apps/desktop/tsconfig.client.json b/apps/desktop/tsconfig.client.json
+index eb17ebe087..534ccfbec0 100644
+--- a/apps/desktop/tsconfig.client.json
++++ b/apps/desktop/tsconfig.client.json
+@@ -7,7 +7,11 @@
+   "include": [
+     "src/client",
+     "src/welcome-api.ts",
+-    "src/locale.ts"
++    "src/locale.ts",
++    "src/companion/api.ts",
++    "src/companion/avatar.ts",
++    "src/companion/copy.ts",
++    "src/companion/notification.ts"
+   ],
+   "references": [
+     {
+diff --git a/apps/desktop/tsconfig.host.json b/apps/desktop/tsconfig.host.json
+index 7078ac8198..70f92afac1 100644
+--- a/apps/desktop/tsconfig.host.json
++++ b/apps/desktop/tsconfig.host.json
+@@ -43,6 +43,33 @@
+     },
+     {
+       "path": "../../packages/client/ui-file-actions"
++    },
++    {
++      "path": "../../packages/client/connection/tsconfig.client.json"
++    },
++    {
++      "path": "../../packages/typert/registry"
++    },
++    {
++      "path": "../../packages/api/session-controller/tsconfig.client.json"
++    },
++    {
++      "path": "../../packages/api/workspace-controller/tsconfig.client.json"
++    },
++    {
++      "path": "../../packages/interaction/commands"
++    },
++    {
++      "path": "../../packages/subagent/subagent"
++    },
++    {
++      "path": "../../packages/llm/llm"
++    },
++    {
++      "path": "../../packages/core/session"
++    },
++    {
++      "path": "../../packages/workspace/workspace"
+     }
+   ],
+   "exclude": [
+diff --git a/apps/desktop/tsdown.config.ts b/apps/desktop/tsdown.config.ts
+index 40ed1a0316..76464a9615 100644
+--- a/apps/desktop/tsdown.config.ts
++++ b/apps/desktop/tsdown.config.ts
+@@ -33,6 +33,13 @@ if (clientVersion === undefined) throw new Error('desktop build: the client envi
+ const clientVersionDefine = { 'process.env.DSH_CLIENT_VERSION': JSON.stringify(clientVersion) }
+ 
+ export default defineConfig([
++  {
++    entry: { index: 'lib/types/companion/agent-tools.js' },
++    plugins: [packagedImportsPlugin({ packages: new Set(), nodeBuiltins: true })],
++    outDir: 'companion-agent/lib', format: ['esm'], platform: 'node', target: 'es2024',
++    fixedExtension: false, dts: false, clean: false, codeSplitting: false,
++    deps: { alwaysBundle: ['zod', '@deepseek-ai/schemastery'] },
++  },
+   {
+     entry: ['lib/types/operation-report-worker.js'],
+     plugins: [packagedImportsPlugin({ packages: new Set(), nodeBuiltins: true })],
+@@ -54,6 +61,15 @@ export default defineConfig([
+   },
+   {
+     entry: ['lib/types/main.js'],
++    // Desktop bundles before the browser pass. Referenced Client projects emit
++    // ESM here, so the non-page tree does not import a browser loader factory
++    // or a previous build's Node Client artifact.
++    alias: Object.fromEntries([
++      ['@deepseek-ai/dsh-client-connection/client', '../../packages/client/connection/lib/types/client/index.js'],
++      ['@deepseek-ai/dsh-client-store', '../../packages/client/store/lib/types/index.js'],
++      ['@deepseek-ai/dsh-typert-registry/client', '../../packages/typert/registry/lib/types/client/index.js'],
++      ['@deepseek-ai/dsh-api-session-controller/client', '../../packages/api/session-controller/lib/types/client/index.js'],
++    ].map(([name, path]) => [name!, fileURLToPath(new URL(path!, import.meta.url))])),
+     plugins: [packagedImportsPlugin(mainProcessImports)],
+     define: clientVersionDefine,
+     onSuccess: async () => {
+@@ -96,7 +112,7 @@ export default defineConfig([
+     clean: false,
+     deps: { neverBundle: ['electron'] },
+   },
+-  ...(['preload-app', 'preload-welcome', 'preload-platform-account', 'preload-mandatory', 'preload-update-dialog'] as const).map(name => ({
++  ...(['preload-app', 'preload-companion', 'preload-welcome', 'preload-platform-account', 'preload-mandatory', 'preload-update-dialog'] as const).map(name => ({
+     // Sandboxed Electron preloads run as CommonJS even though the application package is ESM.
+     entry: { [name]: `lib/types/${name}.js` },
+     plugins: [packagedImportsPlugin(preloadImports)],
+diff --git a/packages/api/session-controller/src/client/index.ts b/packages/api/session-controller/src/client/index.ts
+index b9600f36a6..a42e7aa256 100644
+--- a/packages/api/session-controller/src/client/index.ts
++++ b/packages/api/session-controller/src/client/index.ts
+@@ -27,6 +27,7 @@ export type {
+ export { createScope, scopeOf } from './scope.ts'
+ export type { AgentContext, AgentScopeHandle } from './scope.ts'
+ export { SessionCreateError, SessionForkError } from './sessions/service.ts'
++export { ClientSessions } from './sessions/service.ts'
+ export type { SessionBinding, SessionListState, SessionSummary } from './sessions/service.ts'
+ export type {
+   SessionListPhase,
+diff --git a/packages/api/session-controller/src/commands.ts b/packages/api/session-controller/src/commands.ts
+index 5309872331..512204553c 100644
+--- a/packages/api/session-controller/src/commands.ts
++++ b/packages/api/session-controller/src/commands.ts
+@@ -473,6 +473,10 @@ export class SessionCommandController {
+     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
+       throw apiSessionSubagentOwnershipError(request.sessionId)
+     }
++    if (request.expectedTurnStartSeq !== undefined
++      && this.ctx.agents.turnBoundaryOf(agent.session).openTurnStartSeq !== request.expectedTurnStartSeq) {
++      throw new RemoteError('gateway/bad-request', 'the requested turn is no longer active', {})
++    }
+     agent.cancel({ kind: 'user' }, { keepInbox: true })
+     return { accepted: true }
+   }
+diff --git a/packages/api/session-controller/src/types.ts b/packages/api/session-controller/src/types.ts
+index 9e399d8f3b..5f33f9c5e5 100644
+--- a/packages/api/session-controller/src/types.ts
++++ b/packages/api/session-controller/src/types.ts
+@@ -8,7 +8,7 @@ import type {
+ import type { Branded } from '@deepseek-ai/dsh-brand'
+ import type { LlmAttemptId, MessageId } from '@deepseek-ai/dsh-llm/brand'
+ import type { LlmModelBadge, TextBlock } from '@deepseek-ai/dsh-llm'
+-import type { SessionId, SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
++import type { SessionId, SessionSeq, SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
+ import type { SessionProjectionMap, SessionProjectionSummaryExcluded, SessionProjectionSummaryValues } from '@deepseek-ai/dsh-session-projection/types'
+ import type { Principal } from '@deepseek-ai/dsh-typert-protocol'
+ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+@@ -362,6 +362,8 @@ export interface SessionUpdateQueueValue {
+ /** Active-turn cancellation request. */
+ export interface SessionCancelRequest {
+   readonly sessionId: SessionId
++  /** Refuse cancellation if this exact open turn has already ended or changed. */
++  readonly expectedTurnStartSeq?: SessionSeq
+ }
+ 
+ /** Receipt after cancellation is admitted to the live Agent. */
+diff --git a/packages/api/session-controller/tests/commands-queue-attachment.host.spec.ts b/packages/api/session-controller/tests/commands-queue-attachment.host.spec.ts
+index f575583063..0feff06337 100644
+--- a/packages/api/session-controller/tests/commands-queue-attachment.host.spec.ts
++++ b/packages/api/session-controller/tests/commands-queue-attachment.host.spec.ts
+@@ -248,6 +248,21 @@ describe('Session queue commands', () => {
+     await ctx.fiber.dispose()
+   })
+ 
++  it('rejects a stale stop after another turn starts, without cancelling the new turn', async () => {
++    const { ctx, controller, agent, cancel } = await commandHarness()
++    try {
++      const first = agent.session.append('turn/start', { turn: 1 })
++      expect(controller.cancel({ sessionId: agent.id, expectedTurnStartSeq: first.seq })).toEqual({ accepted: true })
++      expect(cancel).toHaveBeenCalledTimes(1)
++      agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
++      const second = agent.session.append('turn/start', { turn: 2 })
++      expect(() => controller.cancel({ sessionId: agent.id, expectedTurnStartSeq: first.seq })).toThrow('the requested turn is no longer active')
++      expect(cancel).toHaveBeenCalledTimes(1)
++      expect(controller.cancel({ sessionId: agent.id, expectedTurnStartSeq: second.seq })).toEqual({ accepted: true })
++      expect(cancel).toHaveBeenCalledTimes(2)
++    } finally { await ctx.fiber.dispose() }
++  })
++
+   it.each(['continuable', 'seeded-continuable'] as const)(
+     'mutates both inbox destinations of a live %s child while its parent is offline',
+     async (childMode) => {
+diff --git a/packages/client/ui-workspace/src/client/index.ts b/packages/client/ui-workspace/src/client/index.ts
+index ff7890aec5..4aba03230e 100644
+--- a/packages/client/ui-workspace/src/client/index.ts
++++ b/packages/client/ui-workspace/src/client/index.ts
+@@ -125,6 +125,18 @@ export function apply(ctx: Context): void {
+   const uiWorkspace = new UiWorkspaceService(
+     ctx, ctx.remote.directoryPicker, workspaces, sessions, viewInstance.actions, notify,
+   )
++  const companionNavigation = (globalThis as { dshCompanionNavigation?: { subscribe(listener: (sessionId: string) => void): () => void } }).dshCompanionNavigation
++  if (companionNavigation !== undefined) {
++    let active = true
++    ctx.effect(() => () => { active = false }, 'ui-workspace: companion navigation lifetime')
++    const loader = ctx.get('loader') as { await(): Promise<unknown> } | undefined
++    void (loader?.await() ?? Promise.resolve()).then(() => {
++      if (!active) return
++      ctx.effect(() => companionNavigation.subscribe(sessionId => {
++        uiWorkspace.openSession(sessionId as SessionId)
++      }), 'ui-workspace: companion navigation')
++    }).catch((error: unknown) => { console.error('Companion navigation could not start', error) })
++  }
+   ctx.slots.provideRoot({
+     hooks: { workspaces: workspaces.list },
+     keyedHooks: {
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 5a75fdf76b..d5e384acb2 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -266,13 +266,13 @@ importers:
+         version: 6.0.3
+       vite:
+         specifier: 8.2.2
+-        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
++        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+       vite-tsconfig-paths:
+         specifier: ^6.1.1
+-        version: 6.1.1(supports-color@9.4.0)(typescript@6.0.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 6.1.1(supports-color@9.4.0)(typescript@6.0.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       vitest:
+         specifier: ^4.1.11
+-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       zod:
+         specifier: ^4.4.3
+         version: 4.4.3
+@@ -731,12 +731,21 @@ importers:
+         specifier: ^8.21.3
+         version: 8.21.3
+     devDependencies:
++      '@deepseek-ai/dsh-api-session-controller':
++        specifier: workspace:*
++        version: link:../../packages/api/session-controller
++      '@deepseek-ai/dsh-api-workspace-controller':
++        specifier: workspace:*
++        version: link:../../packages/api/workspace-controller
+       '@deepseek-ai/dsh-app-boot':
+         specifier: workspace:*
+         version: link:../../packages/boot/app-boot
+       '@deepseek-ai/dsh-atomic-write':
+         specifier: workspace:*
+         version: link:../../packages/util/atomic-write
++      '@deepseek-ai/dsh-client-connection':
++        specifier: workspace:*
++        version: link:../../packages/client/connection
+       '@deepseek-ai/dsh-client-product-analytics':
+         specifier: workspace:*
+         version: link:../../packages/client/product-analytics
+@@ -758,30 +767,57 @@ importers:
+       '@deepseek-ai/dsh-client-ui-theme':
+         specifier: workspace:*
+         version: link:../../packages/client/ui-theme
++      '@deepseek-ai/dsh-commands':
++        specifier: workspace:*
++        version: link:../../packages/interaction/commands
+       '@deepseek-ai/dsh-deepseek-account':
+         specifier: workspace:*
+         version: link:../../packages/credentials/deepseek-account
+       '@deepseek-ai/dsh-home-paths':
+         specifier: workspace:*
+         version: link:../../packages/util/home-paths
++      '@deepseek-ai/dsh-llm':
++        specifier: workspace:*
++        version: link:../../packages/llm/llm
+       '@deepseek-ai/dsh-official-bundles':
+         specifier: workspace:*
+         version: link:../../packages/util/official-bundles
+       '@deepseek-ai/dsh-plugin-manager':
+         specifier: workspace:*
+         version: link:../../packages/boot/plugin-manager
++      '@deepseek-ai/dsh-session':
++        specifier: workspace:*
++        version: link:../../packages/core/session
++      '@deepseek-ai/dsh-subagent':
++        specifier: workspace:*
++        version: link:../../packages/subagent/subagent
++      '@deepseek-ai/dsh-tools':
++        specifier: workspace:*
++        version: link:../../packages/core/tools
++      '@deepseek-ai/dsh-typert-registry':
++        specifier: workspace:*
++        version: link:../../packages/typert/registry
+       '@deepseek-ai/dsh-util-file-drag':
+         specifier: workspace:*
+         version: link:../../packages/util/file-drag
++      '@deepseek-ai/dsh-workspace':
++        specifier: workspace:*
++        version: link:../../packages/workspace/workspace
+       '@deepseek-ai/node-addon-system':
+         specifier: workspace:~
+         version: link:../../native/system/packages/entry
++      '@deepseek-ai/schemastery':
++        specifier: link:../../vendor/schemastery
++        version: link:../../vendor/schemastery
+       '@electron/get':
+         specifier: ^5.1.0
+         version: 5.1.0(supports-color@9.4.0)
+       '@electron/notarize':
+         specifier: 2.5.0
+         version: 2.5.0(supports-color@9.4.0)
++      '@pixi/unsafe-eval':
++        specifier: 7.4.3
++        version: 7.4.3(@pixi/core@7.4.3)
+       '@types/js-yaml':
+         specifier: ^4.0.9
+         version: 4.0.9
+@@ -815,6 +851,12 @@ importers:
+       koffi:
+         specifier: 3.1.1
+         version: 3.1.1
++      pixi-live2d-display-lipsyncpatch:
++        specifier: 0.5.0-ls-8
++        version: 0.5.0-ls-8(pixi.js@7.4.3)
++      pixi.js:
++        specifier: 7.4.3
++        version: 7.4.3
+       pnpm:
+         specifier: 11.28.5
+         version: 11.28.5
+@@ -835,7 +877,7 @@ importers:
+         version: 6.0.3
+       vite:
+         specifier: ^6.4.3
+-        version: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
++        version: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+       zod:
+         specifier: 4.4.3
+         version: 4.4.3
+@@ -1066,7 +1108,7 @@ importers:
+         version: 8.18.1
+       '@vitejs/plugin-react':
+         specifier: ^4.7.0
+-        version: 4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       fflate:
+         specifier: ^0.8.2
+         version: 0.8.3
+@@ -1090,10 +1132,10 @@ importers:
+         version: 6.0.3
+       vite:
+         specifier: ^6.4.3
+-        version: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
++        version: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+       vitest:
+         specifier: ^4.1.11
+-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       ws:
+         specifier: 8.21.3
+         version: 8.21.3
+@@ -14175,15 +14217,15 @@ importers:
+       '@deepseek-ai/dsh-subagent':
+         specifier: workspace:*
+         version: link:../../subagent/subagent
+-      '@deepseek-ai/dsh-tool-testkit':
+-        specifier: workspace:*
+-        version: link:../../test-support/tool-testkit
+       '@deepseek-ai/dsh-system-prompt':
+         specifier: workspace:*
+         version: link:../../core/system-prompt
+       '@deepseek-ai/dsh-tool-executor-ptc':
+         specifier: workspace:*
+         version: link:../../core/tool-executor-ptc
++      '@deepseek-ai/dsh-tool-testkit':
++        specifier: workspace:*
++        version: link:../../test-support/tool-testkit
+       '@deepseek-ai/dsh-tools':
+         specifier: workspace:*
+         version: link:../../core/tools
+@@ -16979,7 +17021,7 @@ importers:
+         version: 4.3.2
+       vitest:
+         specifier: ^4.1.11
+-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+     devDependencies:
+       '@deepseek-ai/cordis':
+         specifier: workspace:~
+@@ -17190,7 +17232,7 @@ importers:
+         version: 4.3.2
+       vitest:
+         specifier: ^4.1.11
+-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+     devDependencies:
+       '@deepseek-ai/cordis':
+         specifier: workspace:~
+@@ -18571,13 +18613,13 @@ importers:
+         version: 11.17.2
+       vite:
+         specifier: ^5.4.21
+-        version: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)
++        version: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)
+       vitepress:
+         specifier: ^1.6.4
+-        version: 1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@6.0.3)
++        version: 1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(terser@5.51.2)(typescript@6.0.3)
+       vitepress-plugin-mermaid:
+         specifier: ^2.0.17
+-        version: 2.0.17(mermaid@11.17.2)(vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@6.0.3))
++        version: 2.0.17(mermaid@11.17.2)(vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(terser@5.51.2)(typescript@6.0.3))
+       vue:
+         specifier: 3.5.42
+         version: 3.5.42(typescript@6.0.3)
+@@ -20067,6 +20109,9 @@ packages:
+     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
+     engines: {node: '>=6.0.0'}
+ 
++  '@jridgewell/source-map@0.3.11':
++    resolution: {integrity: sha512-ZMp1V8ZFcPG5dIWnQLr3NSI1MiCU7UETdS/A0G8V/XWHvJv3ZsFqutJn1Y5RPmAPX6F3BiE397OqveU/9NCuIA==}
++
+   '@jridgewell/sourcemap-codec@1.5.5':
+     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+ 
+@@ -20805,6 +20850,211 @@ packages:
+     resolution: {integrity: sha512-ODOov0sGMJMf3jPonOkgGqPknTsu+DdQ7kD++gz8aI+aFMOMHFbWAA2taqXXVTdP+OTOQR/znGvSpmkeI0WTYQ==}
+     engines: {node: '>=14.18.0'}
+ 
++  '@pixi/accessibility@7.4.3':
++    resolution: {integrity: sha512-tCr0yeWpMe0yucFvEPidy5a7gVJGpTjqGrDpSEBYT/kbScfUwcoX49RrckCCCiXDlyO4WRh9lVVuHXTvqRLIMg==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/events': 7.4.3
++
++  '@pixi/app@7.4.3':
++    resolution: {integrity: sha512-opyWMuO0Ir8pf1DYUR++wAA6ZfNU+nIX2z95R2OD172HbcdhB4/HD7leLIIAny/LciEdMqlWEBhXK7N93YWbdg==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++
++  '@pixi/assets@7.4.3':
++    resolution: {integrity: sha512-StvjiJBSp/j9hHkGu8AFHNvwYUazXq64WhyhytztyDMRkg/l/cL7EcttY5T0qZNWlIpccdr60LUKrWDOuMpkiw==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/color@7.4.3':
++    resolution: {integrity: sha512-a6R+bXKeXMDcRmjYQoBIK+v2EYqxSX49wcjAY579EYM/WrFKS98nSees6lqVUcLKrcQh2DT9srJHX7XMny3voQ==}
++
++  '@pixi/colord@2.9.6':
++    resolution: {integrity: sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA==}
++
++  '@pixi/compressed-textures@7.4.3':
++    resolution: {integrity: sha512-uJ3CC+lNX4HIxs6IxEESO50/0A1KxSVm6CO9UlkXzTsNj9ynmdy5BkJ1dzii7LCdqGcHIXHO01yvKuUbJBBQtw==}
++    peerDependencies:
++      '@pixi/assets': 7.4.3
++      '@pixi/core': 7.4.3
++
++  '@pixi/constants@7.4.3':
++    resolution: {integrity: sha512-QGmwJUNQy/vVEHzL6VGQvnwawLZ1wceZMI8HwJAT4/I2uAzbBeFDdmCS8WsTpSWLZjF/DszDc1D8BFp4pVJ5UQ==}
++
++  '@pixi/core@7.4.3':
++    resolution: {integrity: sha512-5YDs11faWgVVTL8VZtLU05/Fl47vaP5Tnsbf+y/WRR0VSW3KhRRGTBU1J3Gdc2xEWbJhUK07KGP7eSZpvtPVgA==}
++
++  '@pixi/display@7.4.3':
++    resolution: {integrity: sha512-b5m2dAaoNAVdxz1oDaxl3XZ059NEOcNtGkxTOZ4EYCw/jcp9sZXkgSROHRzsGn4k+NugH7+9MP4Id2Z0kkdUhw==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/events@7.4.3':
++    resolution: {integrity: sha512-o3j/5Dxq6WDVS6eHfURB/cf/MP+NcsF/eC5PnbSHjXxJmDE7PoTVwLvxexm5uuvNRpFh/6/Fn0V8Vl4gV8sc8w==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++
++  '@pixi/extensions@7.4.3':
++    resolution: {integrity: sha512-FhoiYkHQEDYHUE7wXhqfsTRz6KxLXjuMbSiAwnLb9uG1vAgp6q6qd6HEsf4X30YaZbLFY8a4KY6hFZWjF+4Fdw==}
++
++  '@pixi/extract@7.4.3':
++    resolution: {integrity: sha512-HNvGNrEVaeVsbcnIO1MsHpjZbTwo9nIlaOEBzDGcL6JWwzuB1RnzUke7WUCndCUt91sGUdvPnvgCvy9/NNFg3w==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-alpha@7.4.3':
++    resolution: {integrity: sha512-YFdUB1I53USQb+9TEhS849dV2KZhbnNGIoBbOSThUJfXQc4pDguIFWMagVToAQYgmZ4C4AtYfVjaSEELrMcCdA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-blur@7.4.3':
++    resolution: {integrity: sha512-ZFzS9L/whdRbs5A/EUgF3yQaBcxNarmbuwaMgrfnpQ84mRczkGByqDLGToadiufyals07ufTrXBGRle9lbtEDA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-color-matrix@7.4.3':
++    resolution: {integrity: sha512-TNu0h20SrzjUWIb5v19dAp1vPpqtG0w2XF9kIHN91bMNaf3R1jzhpWG6TtaVO9eo1IolWcEJLw38jIohyC+KNw==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-displacement@7.4.3':
++    resolution: {integrity: sha512-ax+cFA2mEnKgqf9F8qInpv09GNWzjwnASLETpwPXzWBtlAlNCeHV2tCv3+SlMdEKUkwG9sA7AmjjjC2JBUyt+Q==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-fxaa@7.4.3':
++    resolution: {integrity: sha512-y9jhho5cCflhEsPtNqqsd+XJHsb+/ysht4rG/VHQ8Z6pScHYpbgiEpowryGq8uSMQQwx6zKNS2DPiXdiOHPZsg==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-noise@7.4.3':
++    resolution: {integrity: sha512-rwgSO3BKe1jW/P5CaOcfLKjfpl674aBEo/igi/3QLxA3ORhILNqWRsKkOwP8xF/ejI5NE4rMEkdv0LScbdGFhA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/graphics@7.4.3':
++    resolution: {integrity: sha512-wWLivD8/URb8A7X4TqCZGG39C91IE+aOuWY/z9NCz5Z6WvA/VWnsc5fLTlO+ggjGHgKF0cSucCXZfUe1wm0AOQ==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/math@7.4.3':
++    resolution: {integrity: sha512-/uJOVhR2DOZ+zgdI6Bs/CwcXT4bNRKsS+TqX3ekRIxPCwaLra+Qdm7aDxT5cTToDzdxbKL5+rwiLu3Y1egILDw==}
++
++  '@pixi/mesh-extras@7.4.3':
++    resolution: {integrity: sha512-EqpxpVZoTObyupxMSzuUsCGmWPQioW84n9EO9Ajawkk/HYA+qKFZ5viKiEThIUBYgv4Apn/7c0U3Feg7Ez4uQQ==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/mesh': 7.4.3
++
++  '@pixi/mesh@7.4.3':
++    resolution: {integrity: sha512-CikqFPtKvU3Zj986/MSoC8X39CWv5CEpiEW/tYp47p4tgQNDSkNWYnDiNYgb+4VX6pNsBrgX4DALLdTR17SlSA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++
++  '@pixi/mixin-cache-as-bitmap@7.4.3':
++    resolution: {integrity: sha512-NgvDdgSgd2tfcTSc+SWF12JJjVVz5ZrkSlhX0idSp/LSako82AiFJlD2xqH9GUsEcA6sqBBlnu7nrGkPTHQdhA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/mixin-get-child-by-name@7.4.3':
++    resolution: {integrity: sha512-HLhDxHwafQT+CxbqQx9w9ivJIyAOg9JJ/6m4fNymVuDWeuMGcxDxBD7DukdUYIieT+RD/RlxdPEmq8YoromlFA==}
++    peerDependencies:
++      '@pixi/display': 7.4.3
++
++  '@pixi/mixin-get-global-position@7.4.3':
++    resolution: {integrity: sha512-k09kvkS379EypCIWgXMY7uiXtWk1BsaJyTYlV16Co0AsmNPdFd+wUozMx1xV6rxcGiWXsxr/1k9fbETuYkcXCQ==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++
++  '@pixi/particle-container@7.4.3':
++    resolution: {integrity: sha512-0DfJF5C0XTfuI2FsLYvMKCOtqWjXWGOWfA6m4l0W/Ke/qw5zKIOEhgjPLw4qNRtOhmEfkVKJUGp66Ap/ya2YzA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/prepare@7.4.3':
++    resolution: {integrity: sha512-OjJHGKXPzwP5OLKxBnTBnKMOktHynLvO0TQPqTYgNtmGQzY109mypCqM4M+s/V+uYmBo/T+sXvBahj98q/f1tA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/graphics': 7.4.3
++      '@pixi/text': 7.4.3
++
++  '@pixi/runner@7.4.3':
++    resolution: {integrity: sha512-TJyfp7y23u5vvRAyYhVSa7ytq0PdKSvPLXu4G3meoFh1oxTLHH6g/RIzLuxUAThPG2z7ftthuW3qWq6dRV+dhw==}
++
++  '@pixi/settings@7.4.3':
++    resolution: {integrity: sha512-SmGK8smc0PxRB9nr0UJioEtE9hl4gvj9OedCvZx3bxBwA3omA5BmP3CyhQfN8XJ29+o2OUL01r3zAPVol4l4lA==}
++
++  '@pixi/sprite-animated@7.4.3':
++    resolution: {integrity: sha512-mw5YIec8KfO1Jv9qrDNvGoD7Dlmcgww5YlMtd+ARi7Zzo+6ziNw899LXtoaKX1+3BXdZbYNyJAx3C5r30NtwXA==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/sprite-tiling@7.4.3':
++    resolution: {integrity: sha512-kUa9cEcMsGXSIZoXA7LhW4oo0eWa30w0KYd7mZ0bqalBMfOcvsGZMN701Lc5lpE8URw+8yu5bnyGLbrxhWBTuw==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/sprite@7.4.3':
++    resolution: {integrity: sha512-iNBrpOFF9nXDT6m2jcyYy6l/sRzklLDDck1eFHprHZwvNquY2nzRfh+RGBCecxhBcijiLJ3fsZN33fP0LDXkvw==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++
++  '@pixi/spritesheet@7.4.3':
++    resolution: {integrity: sha512-Ce4xZzUxUSKfiROUjjVCBYNLuCcDEWKJ822bSV9rkgVHItu3q04VnEww0DXO+9K0hKv4Ukjjk8aP6Pz0LgPm7A==}
++    peerDependencies:
++      '@pixi/assets': 7.4.3
++      '@pixi/core': 7.4.3
++
++  '@pixi/text-bitmap@7.4.3':
++    resolution: {integrity: sha512-TnBocJm7f5nMAYwYcsojc62uCrOYauAGH26o3pNrlqmHDRDQ7FzPOGvkYZGYFREbUycloLSRlYpSy0FB9ZdV4Q==}
++    peerDependencies:
++      '@pixi/assets': 7.4.3
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/mesh': 7.4.3
++      '@pixi/text': 7.4.3
++
++  '@pixi/text-html@7.4.3':
++    resolution: {integrity: sha512-nm9K9gjSZAU8ETwQZBE3kMGNdO1IzyghxoRTcJCWKhekiGDpUQhopfNhqieNZ7reVJpvhpFQWjbyaHDehndUaQ==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3
++      '@pixi/sprite': 7.4.3
++      '@pixi/text': 7.4.3
++
++  '@pixi/text@7.4.3':
++    resolution: {integrity: sha512-IAF0iu04rPg3oiL0HZsEZI44fpJxq3UZ4xTmx8l1RyhhSXiElLvvSlSH57vt/BKMQZtCs+AqEit7yn8heK2+nQ==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/sprite': 7.4.3
++
++  '@pixi/ticker@7.4.3':
++    resolution: {integrity: sha512-tHsAD0iOUb6QSGGw+c8cyRBvxsq/NlfzIFBZLEHhWZ+Bx4a0MmXup6I/yJDGmyPCYE+ctCcAfY13wKAzdiVFgQ==}
++
++  '@pixi/unsafe-eval@7.4.3':
++    resolution: {integrity: sha512-iR2iLcMculCSmn3x446ICCL5iokmFuLZDgNo7k1Q5rzNiULELIixfpSJwvlJqrJPY1kda0oqGHgVGRQ2vGfaLg==}
++    peerDependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/utils@7.4.3':
++    resolution: {integrity: sha512-NO3Y9HAn2UKS1YdxffqsPp+kDpVm8XWvkZcS/E+rBzY9VTLnNOI7cawSRm+dacdET3a8Jad3aDKEDZ0HmAqAFA==}
++
+   '@playwright/mcp@0.0.80':
+     resolution: {integrity: sha512-FOPXHm2SvFhAQylm10jMZ35B/SR2TaMLVkavAlwoG4N2qCb5RqbvhQYcu3zmXNyxR2DW0Ooxe+9XPVt5UjKRCQ==}
+     engines: {node: '>=18'}
+@@ -21414,6 +21664,9 @@ packages:
+   '@types/connect@3.4.38':
+     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
+ 
++  '@types/css-font-loading-module@0.0.12':
++    resolution: {integrity: sha512-x2tZZYkSxXqWvTDgveSynfjq/T2HyiZHXb00j/+gy19yp70PHCizM48XFdjBCWH7eHBD0R5i/pw9yMBP/BH5uA==}
++
+   '@types/d3-array@3.2.2':
+     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
+ 
+@@ -21513,6 +21766,9 @@ packages:
+   '@types/deep-eql@4.0.2':
+     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+ 
++  '@types/earcut@2.1.4':
++    resolution: {integrity: sha512-qp3m9PPz4gULB9MhjGID7wpo3gJ4bTGXm7ltNDsmOvsPduTeHp8wSW9YckBj3mljeOh4F0m2z/0JKAALRKbmLQ==}
++
+   '@types/esrecurse@4.3.1':
+     resolution: {integrity: sha512-xJBAbDifo5hpffDBuHl0Y8ywswbiAp/Wi7Y/GtAgSlZyIABppyurxVueOPE8LUQOxdlgi6Zqce7uoEpqNTeiUw==}
+ 
+@@ -22466,6 +22722,9 @@ packages:
+     resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
+     engines: {node: '>=22.12.0'}
+ 
++  commander@2.20.3:
++    resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
++
+   commander@5.1.0:
+     resolution: {integrity: sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==}
+     engines: {node: '>= 6'}
+@@ -22903,6 +23162,9 @@ packages:
+   duplexer2@0.1.4:
+     resolution: {integrity: sha512-asLFVfWWtJ90ZyOUHMqk7/S2w2guQKxUI2itj3d92ADHhxUSbCMGi1f1cBcJ7xM1To+pE/Khbwo1yuNbMEPKeA==}
+ 
++  earcut@2.2.4:
++    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
++
+   ecc-jsbn@0.1.2:
+     resolution: {integrity: sha512-eh9O+hwRHNbG4BLTjEl3nw044CkGm5X6LoaCf7LPp7UU8Qrt47JYNi6nPX8xjW97TKGKm1ouctg0QSpZe9qrnw==}
+ 
+@@ -23749,6 +24011,9 @@ packages:
+     resolution: {integrity: sha512-FFUtZMpoZ8RqHS3XeXEmHWLA4thH+ZxCv2lOiPIn1Xc7CxrqhWzNSDzD+/chS/zbYezmiwWLdQC09JdQKmthOw==}
+     engines: {node: '>=20'}
+ 
++  ismobilejs@1.1.1:
++    resolution: {integrity: sha512-VaFW53yt8QO61k2WJui0dHf4SlL8lxBofUuUmwBo0ljPk0Drz2TiuDW4jo3wDcv41qy/SxrJ+VAzJ/qYqsmzRw==}
++
+   isstream@0.1.2:
+     resolution: {integrity: sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==}
+ 
+@@ -24838,6 +25103,14 @@ packages:
+     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
+     engines: {node: '>=12'}
+ 
++  pixi-live2d-display-lipsyncpatch@0.5.0-ls-8:
++    resolution: {integrity: sha512-m0PNx6kbnuB8JgdrFMsW/Z1Yt/qVwUxIzG8RjDdNyralkpSFsJX0usqSo5B/nnbL2YUNRqeUkFbq1/e6ktLzeA==}
++    peerDependencies:
++      pixi.js: ^7.0.0
++
++  pixi.js@7.4.3:
++    resolution: {integrity: sha512-uIWdH0EI2dVgNoqN9aFaHCmR0V65OEhMkXs2sek3c/QP2ItV6UoM+ouX9esSv3ibo20F+J5D1XwnQhUZI6wqeQ==}
++
+   pkce-challenge@5.0.1:
+     resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
+     engines: {node: '>=16.20.0'}
+@@ -24981,6 +25254,9 @@ packages:
+   pump@3.0.4:
+     resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
+ 
++  punycode@1.4.1:
++    resolution: {integrity: sha512-jmYNElW7yvO7TV33CjSmvSiE2yco3bV2czu/OzDKdMNVZQWfxCblURLhf+47syQRBntjfLdd/H0egrzIG+oaFQ==}
++
+   punycode@2.3.1:
+     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
+     engines: {node: '>=6'}
+@@ -25557,6 +25833,11 @@ packages:
+     resolution: {integrity: sha512-t23eGzL646ldJMWH/zfdyjsnjDvphYj5ccoKu5nr8ToI1O9u6VVuTHF1fSTlqSZF227qILh8pl/f894BTHIp3w==}
+     engines: {node: '>=10'}
+ 
++  terser@5.51.2:
++    resolution: {integrity: sha512-bWnjSNscmuI+GJze6ZupnHP8G/cTcsJF+bXCeQknk2SHQsgbNJnLrqiH9jZ2W4STPVXH2mDKKRX3iwPhc9Cn/Q==}
++    engines: {node: '>=10'}
++    hasBin: true
++
+   text-decoder@1.2.7:
+     resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
+ 
+@@ -25848,6 +26129,10 @@ packages:
+   url-parse@1.5.10:
+     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
+ 
++  url@0.11.4:
++    resolution: {integrity: sha512-oCwdVC7mTuWiPyjLUz/COz5TLk6wgp0RCsN+wHZ2Ekneac9w8uuV0njcbbie2ME+Vs+d6duwmYuR3HgQXs1fOg==}
++    engines: {node: '>= 0.4'}
++
+   use-sync-external-store@1.6.0:
+     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
+     peerDependencies:
+@@ -27770,6 +28055,12 @@ snapshots:
+ 
+   '@jridgewell/resolve-uri@3.1.2': {}
+ 
++  '@jridgewell/source-map@0.3.11':
++    dependencies:
++      '@jridgewell/gen-mapping': 0.3.13
++      '@jridgewell/trace-mapping': 0.3.31
++    optional: true
++
+   '@jridgewell/sourcemap-codec@1.5.5': {}
+ 
+   '@jridgewell/trace-mapping@0.3.31':
+@@ -28375,6 +28666,200 @@ snapshots:
+       tslib: 2.8.1
+       webcrypto-core: 1.9.2
+ 
++  '@pixi/accessibility@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/events@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/events': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/app@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/assets@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@types/css-font-loading-module': 0.0.12
++
++  '@pixi/color@7.4.3':
++    dependencies:
++      '@pixi/colord': 2.9.6
++
++  '@pixi/colord@2.9.6': {}
++
++  '@pixi/compressed-textures@7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/assets': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/core': 7.4.3
++
++  '@pixi/constants@7.4.3': {}
++
++  '@pixi/core@7.4.3':
++    dependencies:
++      '@pixi/color': 7.4.3
++      '@pixi/constants': 7.4.3
++      '@pixi/extensions': 7.4.3
++      '@pixi/math': 7.4.3
++      '@pixi/runner': 7.4.3
++      '@pixi/settings': 7.4.3
++      '@pixi/ticker': 7.4.3
++      '@pixi/utils': 7.4.3
++
++  '@pixi/display@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/events@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/extensions@7.4.3': {}
++
++  '@pixi/extract@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-alpha@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-blur@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-color-matrix@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-displacement@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-fxaa@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/filter-noise@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/graphics@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/math@7.4.3': {}
++
++  '@pixi/mesh-extras@7.4.3(@pixi/core@7.4.3)(@pixi/mesh@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/mesh': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/mesh@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/mixin-cache-as-bitmap@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/mixin-get-child-by-name@7.4.3(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/mixin-get-global-position@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/particle-container@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/prepare@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/graphics@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/graphics': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/text': 7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++
++  '@pixi/runner@7.4.3': {}
++
++  '@pixi/settings@7.4.3':
++    dependencies:
++      '@pixi/constants': 7.4.3
++      '@types/css-font-loading-module': 0.0.12
++      ismobilejs: 1.1.1
++
++  '@pixi/sprite-animated@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/sprite-tiling@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++
++  '@pixi/spritesheet@7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/assets': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/core': 7.4.3
++
++  '@pixi/text-bitmap@7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/mesh@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))':
++    dependencies:
++      '@pixi/assets': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/mesh': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/text': 7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++
++  '@pixi/text-html@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/text': 7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++
++  '@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))':
++    dependencies:
++      '@pixi/core': 7.4.3
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++
++  '@pixi/ticker@7.4.3':
++    dependencies:
++      '@pixi/extensions': 7.4.3
++      '@pixi/settings': 7.4.3
++      '@pixi/utils': 7.4.3
++
++  '@pixi/unsafe-eval@7.4.3(@pixi/core@7.4.3)':
++    dependencies:
++      '@pixi/core': 7.4.3
++
++  '@pixi/utils@7.4.3':
++    dependencies:
++      '@pixi/color': 7.4.3
++      '@pixi/constants': 7.4.3
++      '@pixi/settings': 7.4.3
++      '@types/earcut': 2.1.4
++      earcut: 2.2.4
++      eventemitter3: 4.0.7
++      url: 0.11.4
++
+   '@playwright/mcp@0.0.80':
+     dependencies:
+       playwright: 1.63.0-alpha-2026-08-31
+@@ -28852,6 +29337,8 @@ snapshots:
+     dependencies:
+       '@types/node': 22.20.1
+ 
++  '@types/css-font-loading-module@0.0.12': {}
++
+   '@types/d3-array@3.2.2': {}
+ 
+   '@types/d3-axis@3.0.6':
+@@ -28975,6 +29462,8 @@ snapshots:
+ 
+   '@types/deep-eql@4.0.2': {}
+ 
++  '@types/earcut@2.1.4': {}
++
+   '@types/esrecurse@4.3.1': {}
+ 
+   '@types/estree@1.0.9': {}
+@@ -29190,7 +29679,7 @@ snapshots:
+       d3-selection: 3.0.0
+       d3-transition: 3.0.1(d3-selection@3.0.0)
+ 
+-  '@vitejs/plugin-react@4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0))':
++  '@vitejs/plugin-react@4.7.0(supports-color@9.4.0)(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))':
+     dependencies:
+       '@babel/core': 7.29.7(supports-color@9.4.0)
+       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7(supports-color@9.4.0))
+@@ -29198,13 +29687,13 @@ snapshots:
+       '@rolldown/pluginutils': 1.0.0-beta.27
+       '@types/babel__core': 7.20.5
+       react-refresh: 0.17.0
+-      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+     transitivePeerDependencies:
+       - supports-color
+ 
+-  '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0))(vue@3.5.42(typescript@6.0.3))':
++  '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2))(vue@3.5.42(typescript@6.0.3))':
+     dependencies:
+-      vite: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)
++      vite: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)
+       vue: 3.5.42(typescript@6.0.3)
+ 
+   '@vitest/coverage-v8@4.1.11(vitest@4.1.11)':
+@@ -29219,7 +29708,7 @@ snapshots:
+       obug: 2.1.3
+       std-env: 4.1.0
+       tinyrainbow: 3.1.0
+-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+ 
+   '@vitest/expect@4.1.11':
+     dependencies:
+@@ -29230,21 +29719,21 @@ snapshots:
+       chai: 6.2.2
+       tinyrainbow: 3.1.0
+ 
+-  '@vitest/mocker@4.1.11(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0))':
++  '@vitest/mocker@4.1.11(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))':
+     dependencies:
+       '@vitest/spy': 4.1.11
+       estree-walker: 3.0.3
+       magic-string: 0.30.21
+     optionalDependencies:
+-      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+ 
+-  '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))':
++  '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))':
+     dependencies:
+       '@vitest/spy': 4.1.11
+       estree-walker: 3.0.3
+       magic-string: 0.30.21
+     optionalDependencies:
+-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+ 
+   '@vitest/pretty-format@4.1.11':
+     dependencies:
+@@ -30006,6 +30495,9 @@ snapshots:
+ 
+   commander@15.0.0: {}
+ 
++  commander@2.20.3:
++    optional: true
++
+   commander@5.1.0: {}
+ 
+   commander@7.2.0: {}
+@@ -30470,6 +30962,8 @@ snapshots:
+     dependencies:
+       readable-stream: 2.3.8
+ 
++  earcut@2.2.4: {}
++
+   ecc-jsbn@0.1.2:
+     dependencies:
+       jsbn: 0.1.1
+@@ -31568,6 +32062,8 @@ snapshots:
+ 
+   isexe@4.0.0: {}
+ 
++  ismobilejs@1.1.1: {}
++
+   isstream@0.1.2: {}
+ 
+   istanbul-lib-coverage@3.2.2: {}
+@@ -32763,6 +33259,46 @@ snapshots:
+ 
+   picomatch@4.0.7: {}
+ 
++  pixi-live2d-display-lipsyncpatch@0.5.0-ls-8(pixi.js@7.4.3):
++    dependencies:
++      pixi.js: 7.4.3
++    optionalDependencies:
++      '@rollup/rollup-linux-x64-gnu': 4.62.2
++      terser: 5.51.2
++
++  pixi.js@7.4.3:
++    dependencies:
++      '@pixi/accessibility': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/events@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/app': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/assets': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/compressed-textures': 7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)
++      '@pixi/core': 7.4.3
++      '@pixi/display': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/events': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/extensions': 7.4.3
++      '@pixi/extract': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-alpha': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-blur': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-color-matrix': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-displacement': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-fxaa': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/filter-noise': 7.4.3(@pixi/core@7.4.3)
++      '@pixi/graphics': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/mesh': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/mesh-extras': 7.4.3(@pixi/core@7.4.3)(@pixi/mesh@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/mixin-cache-as-bitmap': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/mixin-get-child-by-name': 7.4.3(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/mixin-get-global-position': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/particle-container': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/prepare': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/graphics@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))
++      '@pixi/sprite': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))
++      '@pixi/sprite-animated': 7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/sprite-tiling': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/spritesheet': 7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)
++      '@pixi/text': 7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
++      '@pixi/text-bitmap': 7.4.3(@pixi/assets@7.4.3(@pixi/core@7.4.3))(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/mesh@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))
++      '@pixi/text-html': 7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/text@7.4.3(@pixi/core@7.4.3)(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))))
++
+   pkce-challenge@5.0.1: {}
+ 
+   pkijs@3.4.0:
+@@ -32911,6 +33447,8 @@ snapshots:
+       end-of-stream: 1.4.5
+       once: 1.4.0
+ 
++  punycode@1.4.1: {}
++
+   punycode@2.3.1: {}
+ 
+   pure-rand@8.4.0: {}
+@@ -33642,6 +34180,14 @@ snapshots:
+       - encoding
+       - supports-color
+ 
++  terser@5.51.2:
++    dependencies:
++      '@jridgewell/source-map': 0.3.11
++      acorn: 8.18.0
++      commander: 2.20.3
++      source-map-support: 0.5.21
++    optional: true
++
+   text-decoder@1.2.7:
+     dependencies:
+       b4a: 1.8.1
+@@ -33908,6 +34454,11 @@ snapshots:
+       querystringify: 2.2.0
+       requires-port: 1.0.0
+ 
++  url@0.11.4:
++    dependencies:
++      punycode: 1.4.1
++      qs: 6.16.0
++
+   use-sync-external-store@1.6.0(react@18.3.1):
+     dependencies:
+       react: 18.3.1
+@@ -33940,17 +34491,17 @@ snapshots:
+       '@types/unist': 3.0.3
+       vfile-message: 4.0.3
+ 
+-  vite-tsconfig-paths@6.1.1(supports-color@9.4.0)(typescript@6.0.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)):
++  vite-tsconfig-paths@6.1.1(supports-color@9.4.0)(typescript@6.0.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)):
+     dependencies:
+       debug: 4.4.3(supports-color@9.4.0)
+       globrex: 0.1.2
+       tsconfck: 3.1.6(typescript@6.0.3)
+-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+     transitivePeerDependencies:
+       - supports-color
+       - typescript
+ 
+-  vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0):
++  vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2):
+     dependencies:
+       esbuild: 0.21.5
+       postcss: 8.5.28
+@@ -33959,8 +34510,9 @@ snapshots:
+       '@types/node': 22.20.1
+       fsevents: 2.3.3
+       lightningcss: 1.33.0
++      terser: 5.51.2
+ 
+-  vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0):
++  vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0):
+     dependencies:
+       esbuild: 0.25.12
+       fdir: 6.5.0(picomatch@4.0.4)
+@@ -33973,10 +34525,11 @@ snapshots:
+       fsevents: 2.3.3
+       jiti: 2.7.0
+       lightningcss: 1.33.0
++      terser: 5.51.2
+       tsx: 4.23.13
+       yaml: 2.9.0
+ 
+-  vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0):
++  vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0):
+     dependencies:
+       lightningcss: 1.33.0
+       picomatch: 4.0.7
+@@ -33988,17 +34541,18 @@ snapshots:
+       esbuild: 0.28.2
+       fsevents: 2.3.3
+       jiti: 2.7.0
++      terser: 5.51.2
+       tsx: 4.23.13
+       yaml: 2.9.0
+ 
+-  vitepress-plugin-mermaid@2.0.17(mermaid@11.17.2)(vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@6.0.3)):
++  vitepress-plugin-mermaid@2.0.17(mermaid@11.17.2)(vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(terser@5.51.2)(typescript@6.0.3)):
+     dependencies:
+       mermaid: 11.17.2
+-      vitepress: 1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@6.0.3)
++      vitepress: 1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(terser@5.51.2)(typescript@6.0.3)
+     optionalDependencies:
+       '@mermaid-js/mermaid-mindmap': 9.3.0
+ 
+-  vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@6.0.3):
++  vitepress@1.6.4(@algolia/client-search@5.55.2)(@types/node@22.20.1)(@types/react@18.3.31)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(terser@5.51.2)(typescript@6.0.3):
+     dependencies:
+       '@docsearch/css': 3.8.2
+       '@docsearch/js': 3.8.2(@algolia/client-search@5.55.2)(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)
+@@ -34007,7 +34561,7 @@ snapshots:
+       '@shikijs/transformers': 2.5.0
+       '@shikijs/types': 2.5.0
+       '@types/markdown-it': 14.1.2
+-      '@vitejs/plugin-vue': 5.2.4(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0))(vue@3.5.42(typescript@6.0.3))
++      '@vitejs/plugin-vue': 5.2.4(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2))(vue@3.5.42(typescript@6.0.3))
+       '@vue/devtools-api': 7.7.10
+       '@vue/shared': 3.5.39
+       '@vueuse/core': 12.8.2(typescript@6.0.3)
+@@ -34016,7 +34570,7 @@ snapshots:
+       mark.js: 8.11.1
+       minisearch: 7.2.0
+       shiki: 2.5.0
+-      vite: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)
++      vite: 5.4.21(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)
+       vue: 3.5.42(typescript@6.0.3)
+     optionalDependencies:
+       postcss: 8.5.28
+@@ -34048,10 +34602,10 @@ snapshots:
+       - typescript
+       - universal-cookie
+ 
+-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)):
++  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)):
+     dependencies:
+       '@vitest/expect': 4.1.11
+-      '@vitest/mocker': 4.1.11(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0))
++      '@vitest/mocker': 4.1.11(vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       '@vitest/pretty-format': 4.1.11
+       '@vitest/runner': 4.1.11
+       '@vitest/snapshot': 4.1.11
+@@ -34068,7 +34622,7 @@ snapshots:
+       tinyexec: 1.2.4
+       tinyglobby: 0.2.17
+       tinyrainbow: 3.1.0
+-      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+       why-is-node-running: 2.3.0
+     optionalDependencies:
+       '@opentelemetry/api': 1.9.1
+@@ -34079,10 +34633,10 @@ snapshots:
+     transitivePeerDependencies:
+       - msw
+ 
+-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)):
++  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)):
+     dependencies:
+       '@vitest/expect': 4.1.11
+-      '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
++      '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
+       '@vitest/pretty-format': 4.1.11
+       '@vitest/runner': 4.1.11
+       '@vitest/snapshot': 4.1.11
+@@ -34099,7 +34653,7 @@ snapshots:
+       tinyexec: 1.2.4
+       tinyglobby: 0.2.17
+       tinyrainbow: 3.1.0
+-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
++      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
+       why-is-node-running: 2.3.0
+     optionalDependencies:
+       '@opentelemetry/api': 1.9.1
+diff --git a/scripts/build.spec.ts b/scripts/build.spec.ts
+index 1ac882468f..bfe0547658 100644
+--- a/scripts/build.spec.ts
++++ b/scripts/build.spec.ts
+@@ -13,6 +13,7 @@ const artifactGraph = {
+   'desktop-bundle': ['host-bundle'],
+   'client-src': ['desktop-bundle'],
+   'client-bundle': ['client-src'],
++  'companion': ['client-bundle'],
+   'web': ['client-bundle'],
+ }
+ 
+diff --git a/scripts/build.ts b/scripts/build.ts
+index d18d157e26..c52c0d4519 100644
+--- a/scripts/build.ts
++++ b/scripts/build.ts
+@@ -99,6 +99,7 @@ export function buildGates(
+     for (const step of libraryBuildSteps(root, 'all')) {
+       gates.push(libraryGate(step, step.id === 'host-src' ? ['native', ...step.needs] : step.needs, env))
+     }
++    gates.push(pnpmGate('companion', 'Companion renderer', ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle:companion'], ['client-bundle'], env))
+     gates.push(pnpmGate('web', 'Web build', ['run', 'build:web'], ['client-bundle'], env))
+   }
+   if (scope === 'typecheck') {

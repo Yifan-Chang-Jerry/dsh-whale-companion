@@ -1,0 +1,15 @@
+{
+  "name": "@local/dsh-whale-actions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "让会话智能体控制本地鲸鱼娘的动作与表情。",
+  "license": "MIT",
+  "exports": {
+    ".": "./lib/index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": ["lib/index.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
