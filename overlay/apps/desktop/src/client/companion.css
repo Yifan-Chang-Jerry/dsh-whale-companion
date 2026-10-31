@@ -148,12 +148,15 @@ h3{font-size:10px;color:#7e93b0;font-weight:600;letter-spacing:1px;margin:23px 0
 .range-label{display:grid;grid-template-columns:1fr auto;font-size:12px;gap:10px}
 .range-label>span{color:var(--muted);font-size:10px}
 .range-label input{grid-column:1/-1;accent-color:#3475cb;width:100%;margin:0}
-.settings select,.binding select,.shortcut-field input,.time-row input{border:1px solid #d4e0f0;border-radius:7px;background:white;padding:6px;color:#456285;max-width:100%;font-size:11px}
+.settings select,.binding select,.time-row input{border:1px solid #d4e0f0;border-radius:7px;background:white;padding:6px;color:#456285;max-width:100%;font-size:11px}
 .time-row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:14px}
 .time-row label{display:flex;gap:8px;align-items:center;font-size:10px;color:var(--muted)}
 .time-row input{width:100px}
 .shortcut-field{display:flex;flex-direction:column;gap:8px;font-size:10px;color:var(--muted);margin:12px 0}
-.shortcut-field input{font-family:Menlo,monospace;font-size:10px;padding:9px}
+.shortcut-record{border:1px solid #d4e0f0;border-radius:7px;background:white;padding:10px;color:#456285;min-height:38px;font:inherit;font-size:12px}
+.shortcut-record.recording{border-color:var(--ocean);outline:2px solid #c9defb}
+.shortcut-record:focus-visible{outline:2px solid var(--ocean);outline-offset:2px}
+.shortcut-buttons{display:flex;gap:12px;justify-content:flex-end}
 .attribution{font-size:9px;color:#a0aec0;margin-top:30px;line-height:1.8}
 .session-list{display:flex;flex-direction:column;gap:7px;margin:16px 0}
 .session-option{display:flex;text-align:left;gap:11px;align-items:center;border:1px solid var(--line);padding:12px;border-radius:10px}

@@ -89,12 +89,15 @@ export type CompanionCommand =
   | { type: 'cancel'; sessionId: string; runKey: string }
   | { type: 'open-workbench'; sessionId?: string }
   | { type: 'preferences'; value: Partial<CompanionPreferences> }
+  | { type: 'shortcut-recording'; active: boolean }
   | { type: 'drag'; phase: 'start' | 'move' | 'end'; point: { x: number; y: number } }
   | { type: 'interactive'; value: boolean }
 
 export type CompanionResult<T = void> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface CompanionApi {
+  /** Operating system used to display native shortcut key names. */
+  readonly platform: string
   subscribe(listener: (snapshot: CompanionSnapshot) => void): () => void
   command(command: CompanionCommand): Promise<CompanionResult>
   catalog(): Promise<CompanionResult<CompanionCatalog>>

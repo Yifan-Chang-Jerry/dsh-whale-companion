@@ -1,5 +1,5 @@
 /** Lightweight companion UI; all agent state and commands are owned by the main process. */
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { CompanionApi, CompanionCatalog, CompanionCommand, CompanionPreferences, CompanionSnapshot } from '../companion/api.ts'
 import { companionCopy } from '../companion/copy.ts'
@@ -193,6 +193,109 @@ function Pet({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Elemen
   </main>
 }
 
+function ShortcutField({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Element {
+  const c = companionCopy(s.locale)
+  const [phase, setPhase] = useState<'idle' | 'arming' | 'recording' | 'saving'>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const capture = useRef<{ abort: AbortController; saving: boolean }>()
+  const mac = window.dshCompanion.platform === 'darwin'
+  const labels: Record<string, string> = { CommandOrControl: mac ? '⌘' : 'Ctrl', Command: '⌘', Cmd: '⌘',
+    Super: mac ? '⌘' : 'Win', Meta: mac ? '⌘' : 'Win', Control: mac ? '⌃' : 'Ctrl', Ctrl: mac ? '⌃' : 'Ctrl',
+    Alt: mac ? '⌥' : 'Alt', Option: '⌥', Shift: mac ? '⇧' : 'Shift', Space: c.shortcutSpace }
+  const label = s.preferences.shortcut.split('+').map(key => labels[key] ?? key).join(' + ')
+  const cancel = useCallback(async (): Promise<void> => {
+    const current = capture.current
+    if (current === undefined) return
+    current.abort.abort()
+    capture.current = undefined
+    setPhase('idle')
+    try {
+      const result = await window.dshCompanion.command({ type: 'shortcut-recording', active: false })
+      if (!result.ok) setError(result.error)
+    } catch (_error: unknown) { setError(c.requestFailed) }
+  }, [c.requestFailed])
+  useEffect(() => { if (!s.panelVisible) void cancel() }, [s.panelVisible, cancel])
+  useEffect(() => () => {
+    if (capture.current === undefined) return
+    capture.current.abort.abort()
+    capture.current = undefined
+    void window.dshCompanion.command({ type: 'shortcut-recording', active: false }).catch((_error: unknown) => {
+      // The native owner also restores shortcuts on reveal, hide, and renderer teardown.
+    })
+  }, [])
+  const begin = async (): Promise<void> => {
+    if (phase !== 'idle') return
+    const current = { abort: new AbortController(), saving: false }
+    capture.current = current
+    setPhase('arming')
+    setError(null)
+    try {
+      const result = await window.dshCompanion.command({ type: 'shortcut-recording', active: true })
+      if (current.abort.signal.aborted) return
+      if (!result.ok) { setError(result.error); await cancel(); return }
+      setPhase('recording')
+    } catch (_error: unknown) {
+      if (!current.abort.signal.aborted) { setError(c.requestFailed); await cancel() }
+    }
+  }
+  const save = async (shortcut: string): Promise<void> => {
+    const current = capture.current ?? { abort: new AbortController(), saving: false }
+    capture.current = current
+    current.saving = true
+    setPhase('saving')
+    setError(null)
+    try {
+      const result = await window.dshCompanion.command({ type: 'preferences', value: { shortcut, shortcutEnabled: true } })
+      if (!current.abort.signal.aborted && !result.ok) setError(result.error)
+    } catch (_error: unknown) { if (!current.abort.signal.aborted) setError(c.requestFailed) }
+    finally {
+      if (capture.current === current) {
+        try {
+          const result = await window.dshCompanion.command({ type: 'shortcut-recording', active: false })
+          if (!result.ok && !current.abort.signal.aborted) setError(result.error)
+        } catch (_error: unknown) { if (!current.abort.signal.aborted) setError(c.requestFailed) }
+        if (capture.current === current) { capture.current = undefined; setPhase('idle') }
+      }
+    }
+  }
+  const record = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
+    if (phase === 'idle') return
+    if (event.key === 'Tab') { void cancel(); return }
+    event.preventDefault()
+    event.stopPropagation()
+    if (event.key === 'Escape') { void cancel(); return }
+    if (phase !== 'recording' || event.repeat || event.nativeEvent.isComposing || event.keyCode === 229
+      || /^(Control|Alt|Shift|Meta)(Left|Right)$/.test(event.code)) return
+    const names: Record<string, string> = { Space: 'Space', Enter: 'Return', Backspace: 'Backspace', Delete: 'Delete',
+      ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Home: 'Home', End: 'End',
+      PageUp: 'PageUp', PageDown: 'PageDown', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']',
+      Backslash: '\\', Semicolon: ';', Quote: "'", Backquote: '`', Comma: ',', Period: '.', Slash: '/' }
+    const key = /^(Key[A-Z]|Digit[0-9])$/.test(event.code) ? event.code.replace(/^(Key|Digit)/, '')
+      : /^F([1-9]|1[0-9]|2[0-4])$/.test(event.code) ? event.code : names[event.code]
+    if (key === undefined || (!event.ctrlKey && !event.metaKey && !event.altKey) || event.getModifierState('AltGraph')) {
+      setError(c.shortcutInvalid)
+      return
+    }
+    const modifiers = [event.ctrlKey ? 'Control' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.metaKey ? 'Super' : ''].filter(Boolean)
+    void save([...modifiers, key].join('+'))
+  }
+  return <div className="shortcut-field">
+    <span>{c.shortcut}</span>
+    <button type="button" className={`shortcut-record ${phase === 'recording' ? 'recording' : ''}`} aria-label={c.shortcut}
+      aria-describedby="shortcut-help" aria-busy={phase === 'arming' || phase === 'saving'}
+      onClick={() => { void begin() }} onKeyDown={record}
+      onBlur={() => { if (!capture.current?.saving) void cancel() }}>
+      {phase === 'recording' ? c.shortcutRecording : phase === 'arming' ? c.shortcutArming : phase === 'saving' ? c.shortcutSaving : label}
+    </button>
+    <span id="shortcut-help" className="hint">{c.shortcutHelp}</span>
+    <div className="shortcut-buttons">
+      {phase !== 'idle' && phase !== 'saving' && <button type="button" className="text-button" onClick={() => { void cancel() }}>{c.shortcutCancel}</button>}
+      <button type="button" className="text-button" disabled={phase !== 'idle'} onClick={() => { void save('CommandOrControl+Shift+Space') }}>{c.shortcutReset}</button>
+    </div>
+    {(error !== null || s.shortcutError) && <p role="alert" className="hint warning">{error ?? c.shortcutError}</p>}
+  </div>
+}
+
 function Panel({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Element {
   const [view, setView] = useState<'chat' | 'binding' | 'settings' | 'avatar'>(s.binding === null ? 'binding' : 'chat')
   const [draft, setDraft] = useState(s.draft)
@@ -205,6 +308,7 @@ function Panel({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Elem
   const [replyOpen, setReplyOpen] = useState(false)
   const [fullReply, setFullReply] = useState(false)
   const [replyRequestId, setReplyRequestId] = useState<string | null>(null)
+  const [focusRequest, setFocusRequest] = useState(0)
   const content = useRef<HTMLDivElement>(null)
   const revealMotion = useRef<Animation>()
   const input = useRef<HTMLTextAreaElement>(null)
@@ -239,12 +343,13 @@ function Panel({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Elem
           { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], { duration: 240, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' })
       }
-      if (reveal !== 'settings' && reveal !== 'avatar') requestAnimationFrame(() => { input.current?.focus() })
+      if (reveal !== 'settings' && reveal !== 'avatar') setFocusRequest(value => value + 1)
     })
     const preferenceChanged = (): void => { if (reduced.matches) stopMotion() }
     reduced.addEventListener('change', preferenceChanged)
     return () => { unsubscribe(); reduced.removeEventListener('change', preferenceChanged); stopMotion() }
   }, [s.binding?.sessionId, s.preferences.reducedMotion])
+  useLayoutEffect(() => { if (view === 'chat' && s.panelVisible) input.current?.focus() }, [view, s.panelVisible, focusRequest])
   useEffect(() => { if (!s.panelVisible) revealMotion.current?.cancel() }, [s.panelVisible])
   useEffect(() => {
     if (view !== 'chat') {
@@ -357,8 +462,7 @@ function Panel({ snapshot: s }: { snapshot: CompanionSnapshot }): React.JSX.Elem
       <p className="hint">{c.quietHint}</p>
       <h3>{c.keyboard}</h3>
       <Toggle label={c.enableShortcut} checked={s.preferences.shortcutEnabled} onChange={value => { preference({ shortcutEnabled: value }) }} />
-      <label className="shortcut-field">{c.shortcut}<input defaultValue={s.preferences.shortcut} key={s.preferences.shortcut} onBlur={e => { if (e.target.value !== s.preferences.shortcut) preference({ shortcut: e.target.value }) }} /></label>
-      {s.shortcutError && <p role="alert" className="hint warning">{c.shortcutError}</p>}
+      <ShortcutField snapshot={s} />
       <button className="text-button" onClick={() => { setView('binding') }}>{c.rebind} ↗</button>
       <p className="attribution">{c.live2dLicense}</p>
     </section> : view === 'binding' ? <section className="binding content-scroll">

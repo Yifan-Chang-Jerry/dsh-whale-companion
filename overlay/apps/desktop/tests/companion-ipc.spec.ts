@@ -5,14 +5,22 @@ import { tmpdir } from 'node:os'
 import { expect, it, vi } from 'vitest'
 import type { BrowserWindow, IpcMainEvent } from 'electron'
 import { CompanionWindows } from '../src/companion/windows.ts'
+import { CompanionStore } from '../src/companion/store.ts'
 import type { CompanionSnapshot } from '../src/companion/api.ts'
 
-const native = vi.hoisted(() => ({ directory: '' }))
+const native = vi.hoisted(() => ({ directory: '', shortcuts: new Map<string, () => void>(), blocked: new Set<string>() }))
 vi.mock('electron', () => ({
   app: { getPath: () => native.directory },
   ipcMain: { removeHandler: vi.fn(), off: vi.fn() },
   powerMonitor: { off: vi.fn() },
-  globalShortcut: { unregister: vi.fn() },
+  globalShortcut: {
+    register: (key: string, callback: () => void) => {
+      if (native.blocked.has(key) || native.shortcuts.has(key)) return false
+      native.shortcuts.set(key, callback)
+      return true
+    },
+    unregister: (key: string) => { native.shortcuts.delete(key) },
+  },
   screen: {
     off: vi.fn(),
     getDisplayNearestPoint: () => ({ id: 1, workArea: { x: 0, y: 0, width: 1440, height: 900 } }),
@@ -33,6 +41,7 @@ it('admits only the registered main frame and refuses Pet prompt submission', as
     const event = { sender: contents, senderFrame: frame } as never
     const prompt = { type: 'send', sessionId: 'session-a', bindingVersion: 0, requestId: 'c0ef9058-39a2-4aad-b02b-383da3945d96', text: 'do not run' }
     expect((await owner['command'](event, prompt)).ok).toBe(false)
+    expect((await owner['command'](event, { type: 'shortcut-recording', active: true })).ok).toBe(false)
     expect(owner.store.data.submissions).toEqual([])
     const child = { sender: contents, senderFrame: { url: frame.url } } as never
     expect((await owner['command'](child, { type: 'pat' })).ok).toBe(false)
@@ -42,6 +51,49 @@ it('admits only the registered main frame and refuses Pet prompt submission', as
     destroyed = true
     expect((await owner['command'](event, { type: 'pat' })).ok).toBe(false)
   } finally { await rm(native.directory, { recursive: true, force: true }) }
+})
+
+it('records and restores the global wake shortcut while retaining the saved combination on conflict', async () => {
+  native.directory = await mkdtemp(join(tmpdir(), 'dsh-companion-shortcut-'))
+  const owner = new CompanionWindows({ locale: () => 'zh', openWorkbench: async () => {} })
+  try {
+    const frame = { url: 'dsh-app://companion/index.html?view=panel' }
+    const contents = { id: 10, mainFrame: frame, send: vi.fn(), setIgnoreMenuShortcuts: vi.fn() }
+    const panel = { webContents: contents, isDestroyed: () => false, isVisible: () => true,
+      setAlwaysOnTop: vi.fn(), destroy: vi.fn() } as never
+    owner['panel'] = panel
+    owner['windows'].set(10, { window: panel, role: 'panel', subscribed: false })
+    owner.store.data.preferences.avatar.autoDance = false
+    const event = { sender: contents, senderFrame: frame } as never
+    const original = owner.store.data.preferences.shortcut
+    owner['refreshShortcut']()
+    expect(native.shortcuts.has(original)).toBe(true)
+    expect(await owner['command'](event, { type: 'shortcut-recording', active: true })).toMatchObject({ ok: true })
+    expect(native.shortcuts.has(original)).toBe(false)
+    expect(contents.setIgnoreMenuShortcuts).toHaveBeenLastCalledWith(true)
+    expect(await owner['command'](event, { type: 'shortcut-recording', active: false })).toMatchObject({ ok: true })
+    expect(native.shortcuts.has(original)).toBe(true)
+    await owner['command'](event, { type: 'shortcut-recording', active: true })
+    const custom = 'Control+Alt+K'
+    expect(await owner['command'](event, { type: 'preferences', value: { shortcut: custom, shortcutEnabled: true } })).toMatchObject({ ok: true })
+    expect(native.shortcuts.has(custom)).toBe(true)
+    expect(contents.setIgnoreMenuShortcuts).toHaveBeenLastCalledWith(false)
+    const open = vi.spyOn(owner, 'showPanel').mockImplementation(() => {})
+    native.shortcuts.get(custom)!()
+    expect(open).toHaveBeenCalledOnce()
+    native.blocked.add('Control+Alt+L')
+    await owner['command'](event, { type: 'shortcut-recording', active: true })
+    expect(await owner['command'](event, { type: 'preferences', value: { shortcut: 'Control+Alt+L' } })).toMatchObject({ ok: false })
+    expect(owner.store.data.preferences.shortcut).toBe(custom)
+    expect(native.shortcuts.has(custom)).toBe(true)
+    const restored = new CompanionStore(join(native.directory, 'companion'), () => {})
+    await restored.load()
+    expect(restored.data.preferences).toMatchObject({ shortcut: custom, shortcutEnabled: true })
+  } finally {
+    await owner.dispose()
+    native.blocked.clear()
+    await rm(native.directory, { recursive: true, force: true })
+  }
 })
 
 it('registers a subscription before delivering a current complete snapshot', async () => {
