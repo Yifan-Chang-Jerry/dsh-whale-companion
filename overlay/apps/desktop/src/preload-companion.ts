@@ -4,6 +4,7 @@ import { COMPANION_IPC, type CompanionApi, type CompanionSnapshot, type Companio
 
 if (process.isMainFrame && location.protocol === 'dsh-app:' && location.hostname === 'companion') {
   const api: CompanionApi = {
+    platform: process.platform,
     command: command => ipcRenderer.invoke(COMPANION_IPC.command, command) as Promise<CompanionResult>,
     catalog: () => ipcRenderer.invoke(COMPANION_IPC.catalog) as Promise<CompanionResult<CompanionCatalog>>,
     subscribe(listener) {

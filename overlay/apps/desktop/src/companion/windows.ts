@@ -30,6 +30,7 @@ const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('cancel'), sessionId: id, runKey: id }),
   z.object({ type: z.literal('open-workbench'), sessionId: id.optional() }),
   z.object({ type: z.literal('preferences'), value: preferencesSchema.partial().extend({ avatar: avatarPreferencesSchema.optional() }).strict() }),
+  z.object({ type: z.literal('shortcut-recording'), active: z.boolean() }),
   z.object({ type: z.literal('drag'), phase: z.enum(['start', 'move', 'end']), point: z.object({ x: z.number().finite().min(-100_000).max(100_000), y: z.number().finite().min(-100_000).max(100_000) }) }),
   z.object({ type: z.literal('interactive'), value: z.boolean() }),
 ])
@@ -55,6 +56,7 @@ export class CompanionWindows {
   private tray: Tray | undefined
   private shortcut: string | undefined
   private shortcutError = false
+  private shortcutRecording = false
   private suspended = false
   private reaction: CompanionSnapshot['reaction'] = null
   private reactionTimer: ReturnType<typeof setTimeout> | undefined
@@ -182,6 +184,7 @@ export class CompanionWindows {
     window.webContents.on('will-navigate', event => { event.preventDefault() })
     window.webContents.on('will-attach-webview', event => { event.preventDefault() })
     if (role === 'panel') window.webContents.on('before-input-event', (event, input) => {
+      if (this.shortcutRecording) return
       if (input.type !== 'keyDown' || input.alt || !(process.platform === 'darwin' ? input.meta : input.control)) return
       // Native application-menu edit roles otherwise target the workbench.
       // Keep editing in the Quick Panel's own focused field.
@@ -202,13 +205,14 @@ export class CompanionWindows {
       void this.dismissNotifications([message.id]).catch((_error: unknown) => { this.adapter.error = this.copy.requestFailed; this.publish() })
     })
     window.webContents.on('render-process-gone', () => {
+      if (role === 'panel') this.setShortcutRecording(false)
       if (!this.disposed) { record.subscribed = false; void window.loadURL(`dsh-app://companion/index.html?view=${role}`) }
     })
     window.on('closed', () => { this.windows.delete(contentsId) })
     window.on('close', event => { if (!this.disposed) { event.preventDefault(); window.hide(); this.publish() } })
     if (role === 'panel') {
       window.on('blur', () => { if (!this.disposed && window.isVisible()) window.hide() })
-      window.on('hide', () => { this.publish() })
+      window.on('hide', () => { this.setShortcutRecording(false); this.publish() })
     }
     if (pet) {
       window.setIgnoreMouseEvents(true, { forward: true })
@@ -379,7 +383,33 @@ export class CompanionWindows {
           this.panel?.hide()
           break
         }
-        case 'preferences': Object.assign(this.store.data.preferences, command.value); await this.store.save(); this.applyPreferences(); break
+        case 'shortcut-recording': this.setShortcutRecording(command.active); break
+        case 'preferences': {
+          const previous = this.store.data.preferences
+          const next = { ...previous }
+          Object.assign(next, command.value)
+          const shortcutChanged = next.shortcut !== previous.shortcut || next.shortcutEnabled !== previous.shortcutEnabled
+          this.store.data.preferences = next
+          if (shortcutChanged) {
+            this.shortcutRecording = false
+            this.refreshShortcut()
+            if (this.shortcutError) {
+              this.store.data.preferences = previous
+              this.refreshShortcut()
+              this.refreshAvatarHotkeys()
+              throw new Error(this.copy.shortcutError)
+            }
+          }
+          try { await this.store.save() }
+          catch (error) {
+            this.store.data.preferences = previous
+            this.refreshShortcut()
+            this.refreshAvatarHotkeys()
+            throw error
+          }
+          this.applyPreferences()
+          break
+        }
         case 'reset-position': this.store.data.position = null; this.restorePosition(); await this.store.save(); this.positionPanel(); break
         case 'reset-store': await this.store.reset(); await this.adapter.bind(null); this.restorePosition(); this.applyPreferences(); break
         case 'reconnect': this.adapter.reconnect(); break
@@ -531,6 +561,7 @@ export class CompanionWindows {
 
   showPanel(reveal: 'chat' | 'reply' | 'settings' | 'avatar' = 'chat'): void {
     if (this.panel === undefined || this.disposed) return
+    this.setShortcutRecording(false)
     this.avatarInteracted()
     const view = reveal === 'settings' || reveal === 'avatar' || this.store.data.binding === null ? 'utility' : 'chat'
     if (view !== this.panelView) this.panelHeight = view === 'utility' ? 640 : 88
@@ -538,6 +569,7 @@ export class CompanionWindows {
     this.positionPanel()
     this.panel.show()
     this.panel.focus()
+    this.panel.webContents.focus()
     this.panel.webContents.send(COMPANION_IPC.reveal, reveal)
     this.publish()
   }
@@ -554,18 +586,33 @@ export class CompanionWindows {
     this.panel?.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
     this.notice?.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
     this.positionPanel()
-    if (this.shortcut !== undefined) globalShortcut.unregister(this.shortcut)
-    this.shortcut = undefined
-    this.shortcutError = false
-    if (preferences.shortcutEnabled) {
-      try {
-        if (globalShortcut.register(preferences.shortcut, () => { this.showPanel() })) this.shortcut = preferences.shortcut
-        else this.shortcutError = true
-      } catch (_error: unknown) { this.shortcutError = true }
-    }
+    this.refreshShortcut()
     this.refreshMenu()
     this.refreshAvatarHotkeys()
     this.publish()
+  }
+
+  private setShortcutRecording(active: boolean): void {
+    if (this.disposed) return
+    this.shortcutRecording = active
+    this.refreshShortcut()
+    this.refreshAvatarHotkeys()
+  }
+
+  private refreshShortcut(): void {
+    const preferences = this.store.data.preferences
+    this.panel?.webContents.setIgnoreMenuShortcuts(this.shortcutRecording)
+    const desired = preferences.shortcutEnabled && !this.shortcutRecording ? preferences.shortcut : undefined
+    this.shortcutError = false
+    if (desired === this.shortcut) return
+    if (this.shortcut !== undefined) globalShortcut.unregister(this.shortcut)
+    this.shortcut = undefined
+    if (desired !== undefined) {
+      try {
+        if (globalShortcut.register(desired, () => { this.showPanel() })) this.shortcut = desired
+        else this.shortcutError = true
+      } catch (_error: unknown) { this.shortcutError = true }
+    }
   }
 
   private menu(): Electron.MenuItemConstructorOptions[] {
@@ -748,7 +795,7 @@ export class CompanionWindows {
   }
 
   private refreshAvatarHotkeys(): void {
-    const enabled = this.store.data.preferences.avatar.authorHotkeys
+    const enabled = this.store.data.preferences.avatar.authorHotkeys && !this.shortcutRecording
     if (enabled === this.authorHotkeysEnabled) return
     for (const key of this.authorHotkeys.splice(0)) globalShortcut.unregister(key)
     this.authorHotkeysEnabled = enabled

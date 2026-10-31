@@ -34,7 +34,7 @@ function defaults(): CompanionData {
     schemaVersion: 1,
     preferences: { avatar: avatarPreferencesSchema.parse({}), visible: true, size: 200, alwaysOnTop: true, mode: 'companion', reducedMotion: false,
       quietHours: true, quietStart: '23:00', quietEnd: '09:00', notifications: true, speechCharactersPerSecond: 18,
-      shortcutEnabled: false, shortcut: 'CommandOrControl+Shift+Space' },
+      shortcutEnabled: true, shortcut: 'CommandOrControl+Shift+Space' },
     binding: null, position: null, drafts: {}, submissions: [], recentResults: [], notifications: [], readNotifications: [],
     greetings: { day: '', count: 0, last: 0 },
   }
